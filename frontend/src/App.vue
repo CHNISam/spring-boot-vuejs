@@ -46,24 +46,29 @@ export default defineComponent({
 </script>
 <style>
 :root {
-  /* 背景色系 */
-  --bg: #181818;
-  --card-bg: rgba(40, 40, 42, 0.95);
-  --surface: #2C2C2C;
-  --border: #525252;
-
-  /* 文本色系 */
-  --text-main: #EAEAEA;
-  --text-muted: #C0C0C0;
-
-  /* 科技蓝色系强调色 */
-  --accent: #2196F3;        /* 主强调 —— 现代科技蓝 */
-  --accent-hover: #1E88E5;  /* 悬停态 —— 稍微深一点的蓝 */
-  --error: #CF6679;
-
-  /* 通用圆角 & 间距 */
+  /* 整体背景和卡片背景 */
+  --bg: #121212;
+  --card-bg: rgba(30, 30, 31, 0.9);
+  --border: #2a2a2a;
   --radius: 8px;
   --padding: 24px;
+
+  /* 文本配色 */
+  --text-title: #FFFFFF;   /* 标题 */
+  --text-main: #E0E0E0;    /* 正文 */
+  --text-muted: #A0A0A0;   /* 次要信息 */
+
+  /* 强调色 */
+  --accent: #4A90E2;
+  --accent-hover: #6AAFFF;
+
+  /* 错误色 */
+  --error: #CF6679;
+}
+
+/* 全局标题风格 */
+.title, h1, h2 {
+  color: var(--text-title);
 }
 </style>
 
