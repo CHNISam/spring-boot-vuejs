@@ -5,7 +5,6 @@
     <div v-if="loading" class="status">加载中…</div>
     <div v-else-if="error" class="status error">加载失败：{{ error }}</div>
 
-    <!-- 只有 post 拿到数据后才渲染下面内容 -->
     <div v-else-if="post" class="card">
       <h1 class="title">{{ post.title }}</h1>
       <div class="meta">
@@ -21,65 +20,57 @@
 </template>
 
 <script lang="ts" setup>
-import axios from 'axios'
-import { onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import axios from 'axios';
+import { onMounted, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 interface Post {
-  id: number
-  title: string
-  content: string
-  authorName: string
-  createdAt: string   // ISO 字符串
-  views: number
+  id: number;
+  title: string;
+  content: string;
+  authorName: string;
+  createdAt: string;
+  views: number;
 }
 
-const route = useRoute()
-const router = useRouter()
+const route  = useRoute();
+const router = useRouter();
 
-const post = ref<Post | null>(null)
-const loading = ref(true)
-const error = ref<string | null>(null)
+const post    = ref<Post|null>(null);
+const loading = ref(true);
+const error   = ref<string|null>(null);
 
 async function fetchPost() {
-  loading.value = true
-  error.value = null
+  loading.value = true;
+  error.value   = null;
   try {
-    const id = route.params.id
-    const res = await axios.get<Post>(`/api/posts/${id}`)
-    post.value = res.data
-  } catch (e: any) {
-    error.value = e.response?.data?.message || e.message || '未知错误'
+    const id  = route.params.id;
+    const res = await axios.get<Post>('/api/posts/' + id);
+    post.value = res.data;
+  } catch (e:any) {
+    error.value = e.response?.data?.message || e.message || '未知错误';
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
-
-onMounted(fetchPost)
 
 function goBack() {
-  router.back()
+  router.back();
 }
 
-/** 生成相对时间字符串 */
+/** 同列表页一样的相对时间逻辑 */
 function timeAgo(iso: string): string {
-  const now = Date.now()
-  const past = new Date(iso).getTime()
-  const diff = now - past
-  const minute = 60 * 1000
-  const hour = 60 * minute
-  const day = 24 * hour
-
-  if (diff < hour) {
-    const m = Math.floor(diff / minute)
-    return m <= 1 ? '刚刚' : `${m} 分钟前`
-  } else if (diff < day) {
-    const h = Math.floor(diff / hour)
-    return `${h} 小时前`
-  } else {
-    return new Date(iso).toLocaleDateString()
-  }
+  const now   = Date.now();
+  const past  = new Date(iso).getTime();
+  const diff  = now - past;
+  const m = 60*1000, h = 60*m, d = 24*h;
+  if (diff < m)  return '刚刚';
+  if (diff < h)  return `${Math.floor(diff/m)} 分钟前`;
+  if (diff < d)  return `${Math.floor(diff/h)} 小时前`;
+  return new Date(iso).toLocaleDateString();
 }
+
+onMounted(fetchPost);
 </script>
 
 <style scoped>
@@ -137,7 +128,7 @@ body.dark .card {
   color: var(--text-dark);
 }
 
-/* 深色主题变量示例 */
+/* 深色主题变量 */
 :root {
   --text-dark: #333;
   --card-light: rgba(255,255,255,0.8);
