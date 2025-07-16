@@ -1,4 +1,3 @@
-// src/main/java/de/jonashackt/springbootvuejs/controller/CommentController.java
 package de.jonashackt.springbootvuejs.controller;
 
 import java.util.List;
@@ -27,11 +26,20 @@ public class CommentController {
         this.commentService = commentService;
     }
 
+    /** 获取评论列表（含 replyToId） */
     @GetMapping
     public List<CommentDto> list(@PathVariable Long postId) {
         return commentService.findByPostId(postId);
     }
 
+    /** 获取评论总数 */
+    @GetMapping("/count")
+    public ResponseEntity<Long> count(@PathVariable Long postId) {
+        long cnt = commentService.countByPostId(postId);
+        return ResponseEntity.ok(cnt);
+    }
+
+    /** 发布或回复评论 */
     @PostMapping
     public ResponseEntity<CommentDto> create(
             @PathVariable Long postId,
@@ -41,6 +49,7 @@ public class CommentController {
         return ResponseEntity.ok(created);
     }
 
+    /** 编辑自己的评论 */
     @PutMapping("/{commentId}")
     public ResponseEntity<CommentDto> update(
             @PathVariable Long postId,
@@ -51,6 +60,7 @@ public class CommentController {
         return ResponseEntity.ok(updated);
     }
 
+    /** 删除自己的评论 */
     @DeleteMapping("/{commentId}")
     public ResponseEntity<Void> delete(
             @PathVariable Long postId,
@@ -58,11 +68,5 @@ public class CommentController {
     ) {
         commentService.delete(postId, commentId);
         return ResponseEntity.noContent().build();
-    }
-
-    @GetMapping("/count")
-    public ResponseEntity<Long> countComments(@PathVariable Long postId) {
-        long cnt = commentService.countByPostId(postId);
-        return ResponseEntity.ok(cnt);
     }
 }

@@ -39,32 +39,57 @@
             还没有评论，快来抢沙发～
           </div>
 
+          <!-- 评论 / 回复列表（已扁平化） -->
           <div
-            v-for="(c, idx) in comments"
+            v-for="c in comments"
             :key="c.id"
             class="comment"
+            :class="{ reply: c.depth > 0 }"
+            :style="{ marginLeft: c.depth * 24 + 'px' }"
           >
             <div class="comment-avatar"></div>
             <div class="comment-body">
               <div class="comment-meta">
-                <span class="comment-user">{{ c.user }}</span>
+                <span class="comment-user">{{ c.username }}</span>
                 <span class="sep">·</span>
                 <span class="comment-time">{{ timeAgo(c.createdAt) }}</span>
               </div>
-              <div class="comment-text">{{ c.text }}</div>
-              <div class="comment-actions">
-                <button class="action-btn" @click="editComment(idx)">编辑</button>
-                <button class="action-btn" @click="deleteComment(idx)">删除</button>
+
+              <div class="comment-text">
+                <template v-if="c.replyToId">
+                  <span class="mention">@{{ replyName(c.replyToId) }}</span>
+                </template>
+                {{ c.text }}
+              </div>
+
+              <div class="comment-actions-row">
+                <button class="action-btn reply" @click="startReply(c)">回复</button>
+                <template v-if="currentUserId !== null && c.userId === currentUserId">
+                  <button class="action-btn edit" @click="editComment(c)">编辑</button>
+                  <button class="action-btn delete" @click="deleteComment(c)">删除</button>
+                </template>
               </div>
             </div>
           </div>
+
+          <!-- 正在回复提示条 -->
+          <transition name="fade">
+            <div
+              v-if="replyTarget"
+              class="reply-banner"
+            >
+              正在回复 @{{ replyTarget.username }}
+              <button class="reply-cancel-btn" @click="cancelReply" aria-label="取消回复">×</button>
+            </div>
+          </transition>
 
           <!-- 发表评论 -->
           <div class="comment-input">
             <textarea
               v-model="newComment"
               placeholder="写下你的评论…"
-              @keydown.enter.prevent="postComment"
+              @keydown.enter.ctrl.exact.prevent="postComment"
+              @keydown.meta.enter.exact.prevent="postComment"
             ></textarea>
             <button
               class="btn-submit"
@@ -87,6 +112,7 @@ import axios from 'axios'
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+/* ------------ Types ------------ */
 interface Post {
   id: number
   title: string
@@ -96,28 +122,48 @@ interface Post {
   comments: number
 }
 
-interface Comment {
+interface CommentRaw {
   id: number
-  user: string
+  userId: number
+  username: string
+  replyToId?: number | null
   text: string
   createdAt: string
 }
 
+interface CommentDisplay extends CommentRaw {
+  depth: number   // 0=顶层, 1+=回复缩进
+}
+
+/* ------------ Refs ------------ */
 const route = useRoute()
 const router = useRouter()
 
 const post = ref<Post|null>(null)
-const comments = ref<Comment[]>([])
+const comments = ref<CommentDisplay[]>([])
+const commentRaw = ref<CommentRaw[]>([])
+const userMap = ref<Record<number,string>>({})
 const loading = ref(true)
 const error = ref<string|null>(null)
 const newComment = ref('')
+const replyTarget = ref<CommentRaw|null>(null)
 const commentsSection = ref<HTMLElement|null>(null)
+const currentUserId = ref<number|null>(null)
 
-async function fetchComments() {
-  if (!post.value) return
-  const res = await axios.get<Comment[]>(`/api/posts/${post.value.id}/comments`)
-  comments.value = res.data
-  post.value.comments = comments.value.length
+/* ------------ Init ------------ */
+onMounted(async () => {
+  await fetchCurrentUser()
+  await fetchPost()
+})
+
+/* ------------ API ------------ */
+async function fetchCurrentUser() {
+  try {
+    const res = await axios.get<{id:number, username?:string}>('/api/me')
+    currentUserId.value = res.data.id
+  } catch {
+    currentUserId.value = null
+  }
 }
 
 async function fetchPost() {
@@ -132,6 +178,58 @@ async function fetchPost() {
   } finally {
     loading.value = false
   }
+}
+
+async function fetchComments() {
+  if (!post.value) return
+  const res = await axios.get<CommentRaw[]>(`/api/posts/${post.value.id}/comments`)
+  commentRaw.value = res.data
+  buildUserMap()
+  buildThread()
+  post.value.comments = commentRaw.value.length
+}
+
+/* ------------ Helpers ------------ */
+function buildUserMap() {
+  const map: Record<number,string> = {}
+  commentRaw.value.forEach(c => { map[c.id] = c.username })
+  userMap.value = map
+}
+
+function buildThread() {
+  // 按创建时间排序，父级先出现
+  const sorted = [...commentRaw.value].sort(
+    (a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  )
+  // 建树
+  const children: Record<number, CommentRaw[]> = {}
+  sorted.forEach(c => {
+    if (c.replyToId) {
+      (children[c.replyToId] ||= []).push(c)
+    }
+  })
+  const flat: CommentDisplay[] = []
+  sorted
+    .filter(c => !c.replyToId) // 顶层
+    .forEach(root => {
+      flat.push({...root, depth:0})
+      pushChildren(root, 1, flat, children)
+    })
+  comments.value = flat
+}
+
+function pushChildren(parent: CommentRaw, depth: number, out: CommentDisplay[], children: Record<number, CommentRaw[]>) {
+  const kids = children[parent.id]
+  if (!kids) return
+  kids.forEach(k => {
+    out.push({...k, depth})
+    pushChildren(k, depth+1, out, children)
+  })
+}
+
+function replyName(id?: number | null) {
+  if (!id) return ''
+  return userMap.value[id] ?? '未知'
 }
 
 function goBack() {
@@ -153,40 +251,62 @@ function timeAgo(iso: string) {
 }
 
 function scrollToComments() {
-  if (commentsSection.value) {
-    commentsSection.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  commentsSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+/* ------------ Reply Flow ------------ */
+function startReply(c: CommentRaw | CommentDisplay) {
+  replyTarget.value = {
+    id: c.id,
+    userId: c.userId,
+    username: c.username,
+    replyToId: c.replyToId,
+    text: c.text,
+    createdAt: c.createdAt
   }
+  // 不强行塞 textarea 文本；保持纯净，由用户输入（体验更清爽）
+  // 若想自动带前缀，可解除注释：
+  // newComment.value = `@${c.username} `
 }
 
+function cancelReply() {
+  replyTarget.value = null
+}
+
+/* ------------ CRUD ------------ */
 async function postComment() {
-  const text = newComment.value.trim()
-  if (!text || !post.value) return
-  const res = await axios.post<Comment>(
+  const txt = newComment.value.trim()
+  if (!txt || !post.value) return
+  const payload: any = { text: txt }
+  if (replyTarget.value) payload.replyToId = replyTarget.value.id
+
+  const res = await axios.post<CommentRaw>(
     `/api/posts/${post.value.id}/comments`,
-    { text }
+    payload
   )
-  comments.value.push(res.data)
+
   newComment.value = ''
-  post.value.comments = comments.value.length
+  replyTarget.value = null
+
+  // 重新拉完整列表，保证排序正确
+  await fetchComments()
 }
 
-async function deleteComment(idx: number) {
-  const c = comments.value[idx]
+async function deleteComment(c: CommentDisplay) {
+  if (!post.value) return
   if (!confirm('确定要删除这条评论吗？')) return
-  await axios.delete(`/api/posts/${post.value!.id}/comments/${c.id}`)
-  comments.value.splice(idx, 1)
-  post.value!.comments = comments.value.length
+  await axios.delete(`/api/posts/${post.value.id}/comments/${c.id}`)
+  await fetchComments()
 }
 
-async function editComment(idx: number) {
-  const c = comments.value[idx]
-  const newText = prompt('编辑评论内容：', c.text)?.trim()
-  if (newText == null || newText === c.text) return
-  await axios.put(`/api/posts/${post.value!.id}/comments/${c.id}`, { text: newText })
-  comments.value[idx].text = newText
+async function editComment(c: CommentDisplay) {
+  if (!post.value) return
+  const txt = prompt('编辑评论内容：', c.text)?.trim()
+  if (txt == null || txt === c.text) return
+  const payload: any = { text: txt, replyToId: c.replyToId ?? null }
+  await axios.put(`/api/posts/${post.value.id}/comments/${c.id}`, payload)
+  await fetchComments()
 }
-
-onMounted(fetchPost)
 </script>
 
 <style scoped>
@@ -199,7 +319,7 @@ onMounted(fetchPost)
   min-height: 100vh;
 }
 
-/* 返回按钮 */
+/* 返回 */
 .back-btn {
   background: none;
   border: none;
@@ -208,21 +328,17 @@ onMounted(fetchPost)
   cursor: pointer;
   transition: color .2s;
 }
-.back-btn:hover {
-  color: var(--accent-hover);
-}
+.back-btn:hover { color: var(--accent-hover); }
 
-/* 状态提示 */
+/* 状态 */
 .status {
   text-align: center;
   padding: 24px 0;
   color: var(--text-main);
 }
-.status.error {
-  color: var(--error);
-}
+.status.error { color: var(--error); }
 
-/* 卡片 & 标题 */
+/* 卡片 */
 .card {
   background: var(--card-bg);
   border: 1px solid var(--border);
@@ -242,12 +358,12 @@ onMounted(fetchPost)
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: var(--card-bg);
+  background: var(--surface);
   border-radius: var(--radius);
   margin-bottom: 24px;
 }
 .pub-date {
-  font-size: 0.875rem;
+  font-size: .875rem;
   color: var(--text-muted);
 }
 .stats {
@@ -259,14 +375,12 @@ onMounted(fetchPost)
   align-items: center;
   background: none;
   border: none;
-  font-size: 0.875rem;
+  font-size: .875rem;
   color: var(--text-muted);
   cursor: pointer;
   transition: color .2s;
 }
-.stat-item:hover {
-  color: var(--accent);
-}
+.stat-item:hover { color: var(--accent); }
 .stat-item svg {
   width: 18px;
   height: 18px;
@@ -293,24 +407,40 @@ onMounted(fetchPost)
   margin-bottom: 16px;
   color: var(--text-title);
 }
+.no-comments {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
 
 /* 评论列表 */
 .comment {
   display: flex;
   margin-bottom: 20px;
+  position: relative;
+}
+.comment.reply::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 20px;
+  bottom: -8px;
+  width: 2px;
+  background: var(--border);
 }
 .comment-avatar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   background: var(--surface);
+  flex-shrink: 0;
 }
 .comment-body {
   margin-left: 12px;
   flex: 1;
 }
 .comment-meta {
-  font-size: 0.875rem;
+  font-size: .875rem;
   color: var(--text-muted);
 }
 .comment-user {
@@ -319,27 +449,63 @@ onMounted(fetchPost)
 }
 .comment-text {
   margin: 6px 0;
-  font-size: 0.95rem;
+  font-size: .95rem;
   color: var(--text-main);
+  line-height: 1.6;
 }
-.comment-actions .action-btn {
-  font-size: 0.85rem;
+.mention {
   color: var(--accent);
-  background: none;
-  border: none;
-  margin-right: 8px;
-  cursor: pointer;
-  transition: color .2s;
-}
-.comment-actions .action-btn:hover {
-  text-decoration: underline;
+  margin-right: 4px;
 }
 
-/* 发表评论 */
+/* 行为区 */
+.comment-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+.action-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: .85rem;
+  cursor: pointer;
+  transition: color .15s;
+}
+.action-btn.reply { color: var(--accent); }
+.action-btn.edit { color: var(--accent); }
+.action-btn.delete { color: var(--error); }
+.action-btn:hover { text-decoration: underline; }
+
+/* 正在回复提示条 */
+.reply-banner {
+  margin-top: 16px;
+  margin-bottom: 4px;
+  padding: 6px 12px;
+  font-size: .875rem;
+  color: var(--accent);
+  background: rgba(0,0,0,.3);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.reply-cancel-btn {
+  background: none;
+  border: none;
+  color: var(--accent-hover);
+  cursor: pointer;
+  font-size: 1.1em;
+  line-height: 1;
+}
+
+/* 输入 */
 .comment-input {
   display: flex;
   align-items: flex-start;
-  margin-top: 28px;
+  margin-top: 20px;
 }
 .comment-input textarea {
   flex: 1;
@@ -347,9 +513,10 @@ onMounted(fetchPost)
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: 6px;
-  font-size: 0.95rem;
+  font-size: .95rem;
   color: var(--text-main);
   min-height: 100px;
+  resize: vertical;
 }
 .comment-input textarea:focus {
   outline: none;
@@ -366,7 +533,7 @@ onMounted(fetchPost)
   border: none;
   border-radius: 6px;
   color: #fff;
-  font-size: 0.95rem;
+  font-size: .95rem;
   cursor: pointer;
   transition: background .2s;
 }
@@ -376,5 +543,15 @@ onMounted(fetchPost)
 }
 .btn-submit:not(:disabled):hover {
   background: var(--accent-hover);
+}
+
+/* 小过渡 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity .15s;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

@@ -1,4 +1,3 @@
-// src/main/java/de/jonashackt/springbootvuejs/domain/Comment.java
 package de.jonashackt.springbootvuejs.domain;
 
 import java.time.Instant;
@@ -22,13 +21,23 @@ public class Comment {
     @Column(name = "post_id", nullable = false)
     private Long postId;
 
-    // 原来是 user，已改为 username 避免与 SQL 关键字冲突
+    // 评论者用户 ID
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
+    // 避免与 SQL 关键字冲突，用 username 存展示名
     @Column(name = "username", nullable = false)
     private String username;
 
+    // 回复目标评论 ID，可空
+    @Column(name = "reply_to_id")
+    private Long replyToId;
+
+    // 评论内容
     @Column(nullable = false, columnDefinition = "TEXT")
     private String text;
 
+    // 创建时间
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -52,12 +61,28 @@ public class Comment {
         this.postId = postId;
     }
 
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+
     public String getUsername() {
         return username;
     }
 
     public void setUsername(String username) {
         this.username = username;
+    }
+
+    public Long getReplyToId() {
+        return replyToId;
+    }
+
+    public void setReplyToId(Long replyToId) {
+        this.replyToId = replyToId;
     }
 
     public String getText() {
@@ -71,5 +96,5 @@ public class Comment {
     public Instant getCreatedAt() {
         return createdAt;
     }
-    // createdAt 无需 setter
+    // createdAt 不需要 setter
 }

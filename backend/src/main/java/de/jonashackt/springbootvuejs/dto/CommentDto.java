@@ -2,20 +2,18 @@ package de.jonashackt.springbootvuejs.dto;
 
 import java.time.Instant;
 
+/**
+ * 返回给前端的评论数据
+ */
 public class CommentDto {
     private Long id;
-    private String username;      // 同步改名
+    private Long userId;      // 评论者 ID，用于前端权限判断
+    private String username;  // 评论者展示名
+    private Long replyToId;   // 如果非 null，表示这是对某条评论的回复
     private String text;
     private Instant createdAt;
 
     public CommentDto() { }
-
-    public CommentDto(Long id, String username, String text, Instant createdAt) {
-        this.id = id;
-        this.username = username;
-        this.text = text;
-        this.createdAt = createdAt;
-    }
 
     public Long getId() {
         return id;
@@ -25,12 +23,28 @@ public class CommentDto {
         this.id = id;
     }
 
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+
     public String getUsername() {
         return username;
     }
 
     public void setUsername(String username) {
         this.username = username;
+    }
+
+    public Long getReplyToId() {
+        return replyToId;
+    }
+
+    public void setReplyToId(Long replyToId) {
+        this.replyToId = replyToId;
     }
 
     public String getText() {
