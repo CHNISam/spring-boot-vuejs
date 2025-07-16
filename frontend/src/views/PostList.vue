@@ -26,23 +26,17 @@
           <p class="excerpt">{{ excerpt(post.content) }}</p>
         </div>
 
-        <!-- 只有有缩略图才渲染 -->
         <div class="thumb-wrapper" v-if="post.thumbnail">
           <img class="thumb" :src="post.thumbnail" alt="缩略图" />
         </div>
 
         <div class="card-footer">
-          <button class="foot-item" @click.stop="goToDetail(post.id)">
-            <svg class="icon" viewBox="0 0 24 24">
-              <path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
+          <button class="foot-item views" @click.stop="goToDetail(post.id)">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
             <span>{{ post.views }}</span>
           </button>
-          <button class="foot-item" @click.stop="goToDetail(post.id)">
-            <svg class="icon" viewBox="0 0 24 24">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/>
-            </svg>
+          <button class="foot-item comments" @click.stop="goToDetail(post.id)">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/></svg>
             <span>{{ post.comments }}</span>
           </button>
         </div>
@@ -73,7 +67,6 @@ const posts = ref<Post[]>([])
 const loading = ref(true)
 const error = ref<string|null>(null)
 
-// 把 avatarStyle 改成箭头函数，TS 一定能识别
 const avatarStyle = (url?: string): Record<string,string> => ({
   background: url ? `url(${url}) center/cover` : '#444'
 })
@@ -102,11 +95,16 @@ async function fetchPosts() {
   loading.value = true
   error.value = null
   try {
+    // 先获取基础列表
     const res = await axios.get<Post[]>('/api/posts')
-    posts.value = res.data.map(p => ({
-      ...p,
-      comments: p.comments ?? 0
-    }))
+    posts.value = res.data.map(p => ({ ...p, comments: p.comments ?? 0 }))
+    // 并行获取每条的评论数
+    await Promise.all(
+      posts.value.map(async p => {
+        const cntRes = await axios.get<number>(`/api/posts/${p.id}/comments/count`)
+        p.comments = cntRes.data
+      })
+    )
   } catch (e: any) {
     error.value = e.response?.data?.message || e.message || '未知错误'
   } finally {

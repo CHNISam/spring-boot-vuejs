@@ -34,8 +34,8 @@ public class CommentController {
 
     @PostMapping
     public ResponseEntity<CommentDto> create(
-        @PathVariable Long postId,
-        @RequestBody CreateCommentDto dto
+            @PathVariable Long postId,
+            @RequestBody CreateCommentDto dto
     ) {
         CommentDto created = commentService.create(postId, dto);
         return ResponseEntity.ok(created);
@@ -43,9 +43,9 @@ public class CommentController {
 
     @PutMapping("/{commentId}")
     public ResponseEntity<CommentDto> update(
-        @PathVariable Long postId,
-        @PathVariable Long commentId,
-        @RequestBody CreateCommentDto dto
+            @PathVariable Long postId,
+            @PathVariable Long commentId,
+            @RequestBody CreateCommentDto dto
     ) {
         CommentDto updated = commentService.update(postId, commentId, dto);
         return ResponseEntity.ok(updated);
@@ -53,10 +53,16 @@ public class CommentController {
 
     @DeleteMapping("/{commentId}")
     public ResponseEntity<Void> delete(
-        @PathVariable Long postId,
-        @PathVariable Long commentId
+            @PathVariable Long postId,
+            @PathVariable Long commentId
     ) {
         commentService.delete(postId, commentId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/count")
+    public ResponseEntity<Long> countComments(@PathVariable Long postId) {
+        long cnt = commentService.countByPostId(postId);
+        return ResponseEntity.ok(cnt);
     }
 }
