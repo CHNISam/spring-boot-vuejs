@@ -1,59 +1,83 @@
 <template>
-  <div class="unprotected" v-if="loginError">
-    <h1><span class="badge bg-danger">You don't have rights here, mate :D</span></h1>
-    <h5>Seems that you don't have access rights... </h5>
+  <div class="login-page">
+    <LoginForm
+      :loginError="loginError"
+      :error="errorMsg"
+      @submit="handleSubmit"
+    />
   </div>
-  <div class="unprotected" v-else>
-    <h1><span class="badge bg-warning text-dark">Please login to get access!</span></h1>
-    <h5>You're not logged in - so you don't see much here. Try to log in:</h5>
-
-    <form @submit.prevent="callLogin()">
-      <input type="text" placeholder="username" v-model="user">
-      <input type="password" placeholder="password" v-model="password">
-      <button type="submit" class="btn btn-primary">Login</button>
-      <p v-if="error" class="error">Bad login information</p>
-    </form>
-  </div>
-
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
-import {AxiosError} from "axios";
-
-interface State {
-  loginError: boolean;
-  user: string;
-  password: string;
-  error: boolean;
-  errors: AxiosError[]
-}
+import LoginForm from '@/components/login/LoginForm.vue'
+import axios, { AxiosError } from 'axios'
+import { defineComponent, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useStore } from 'vuex'
 
 export default defineComponent({
-  name: 'Login',
+  name: 'LoginView',
+  components: { LoginForm },
+  setup() {
+    const store = useStore()
+    const router = useRouter()
 
-  data: (): State => {
-    return {
-      loginError: false,
-      user: '',
-      password: '',
-      error: false,
-      errors: []
+    // 登录失败开关和错误信息
+    const loginError = ref(false)
+    const errorMsg = ref<string | boolean>(false)
+
+    // 处理 LoginForm 的 submit 事件
+    async function handleSubmit(payload: {
+      user: string
+      password: string
+      done: () => void
+    }) {
+      loginError.value = false
+      errorMsg.value = false
+
+      try {
+        await store.dispatch('login', {
+          user: payload.user,
+          password: payload.password
+        })
+        // 登录成功后跳转
+        router.push('/Protected')
+      } catch (err: unknown) {
+        loginError.value = true
+
+        // 如果是 AxiosError，就尝试取后端返回的 message
+        if (axios.isAxiosError(err)) {
+          const axiosErr = err as AxiosError<{ message?: string }>
+          errorMsg.value =
+            axiosErr.response?.data?.message ||
+            'Bad login information'
+        } else if (err instanceof Error) {
+          // 其它 Error，使用它的 message
+          errorMsg.value = err.message
+        } else {
+          // 万一都不是，用通用提示
+          errorMsg.value = 'An unexpected error occurred'
+        }
+      } finally {
+        // 停止按钮加载状态
+        payload.done()
+      }
     }
-  },
-  methods: {
-    callLogin() {
-      this.errors = [];
-      this.$store.dispatch("login", { user: this.user, password: this.password})
-        .then(() => {
-          this.$router.push('/Protected')
-        })
-        .catch((error: AxiosError) => {
-          this.loginError = true;
-          this.errors.push(error);
-          this.error = true
-        })
+
+    return {
+      loginError,
+      errorMsg,
+      handleSubmit
     }
   }
-});
+})
 </script>
+
+<style scoped>
+.login-page {
+  /* 让 LoginForm 组件全屏铺满 */
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+</style>
