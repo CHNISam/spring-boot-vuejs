@@ -29,8 +29,13 @@ public class PostService {
         return repo.findByTitleContainingOrContentContaining(q, q);
     }
 
-    /** 新增：根据 ID 查询单个帖子 */
-    public Optional<Post> findById(Long id) {
-        return repo.findById(id);
+    /** 新增：根据 ID 查询并累加浏览量 */
+    public Optional<Post> findByIdAndIncrementViews(Long id) {
+        Optional<Post> o = repo.findById(id);
+        o.ifPresent(p -> {
+            p.setViews(p.getViews() + 1);
+            repo.save(p);
+        });
+        return o;
     }
 }

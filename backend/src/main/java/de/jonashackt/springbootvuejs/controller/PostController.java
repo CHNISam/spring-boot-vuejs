@@ -24,46 +24,31 @@ public class PostController {
         this.service = service;
     }
 
-    /**
-     * 发布新帖子
-     * 请求：POST /api/posts
-     * Body: { "title": "...", "content": "..." }
-     * 返回：刚创建好的 Post 对象（带 id 和 createdAt）
-     */
+    /** 发布新帖子 */
     @PostMapping
     public ResponseEntity<Post> create(@RequestBody Post post) {
         Post saved = service.create(post);
-        // 返回 201 Created + body
         return ResponseEntity
-                .created(null)      // 你可以填 Location URI：URI.create("/api/posts/" + saved.getId())
+                .created(null)   // 可指定 Location，如 URI.create("/api/posts/" + saved.getId())
                 .body(saved);
     }
 
-    /**
-     * 搜索帖子
-     * 请求：GET /api/posts/search?q=关键字
-     * 返回：匹配的帖子列表（每个都带 createdAt）
-     */
+    /** 搜索帖子 */
     @GetMapping("/search")
     public ResponseEntity<List<Post>> search(@RequestParam("q") String q) {
-        List<Post> results = service.search(q);
-        return ResponseEntity.ok(results);
+        return ResponseEntity.ok(service.search(q));
     }
 
-    /**
-     * 列出所有帖子
-     * 请求：GET /api/posts
-     * 返回：所有帖子列表（每个都带 createdAt）
-     */
+    /** 列出所有帖子 */
     @GetMapping
     public ResponseEntity<List<Post>> listAll() {
-        List<Post> all = service.findAll();
-        return ResponseEntity.ok(all);
+        return ResponseEntity.ok(service.findAll());
     }
-        /** 新增：根据 ID 返回单个帖子 */
+
+    /** 根据 ID 查询单个帖子并累加浏览量 */
     @GetMapping("/{id}")
     public ResponseEntity<Post> getById(@PathVariable Long id) {
-        return service.findById(id)
+        return service.findByIdAndIncrementViews(id)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
