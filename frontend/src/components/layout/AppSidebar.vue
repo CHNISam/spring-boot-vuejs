@@ -4,23 +4,23 @@
     <ul class="menu-list">
       <li>
         <router-link to="/" title="首页" exact>
-          <span class="link-text">首页</span>
+          <span class="link-text">Home</span>
         </router-link>
       </li>
       <li>
         <!-- 改成 /posts 列表页 -->
         <router-link to="/posts" title="动态" exact>
-          <span class="link-text">动态</span>
+          <span class="link-text">Posts</span>
         </router-link>
       </li>
       <li>
         <router-link to="/albums" title="相册">
-          <span class="link-text">相册</span>
+          <span class="link-text">Albums</span>
         </router-link>
       </li>
       <li>
         <router-link to="/editor" title="投稿">
-          <span class="link-text">投稿</span>
+          <span class="link-text">Editor</span>
         </router-link>
       </li>
       <!-- 去掉原来的“帖子”项 -->

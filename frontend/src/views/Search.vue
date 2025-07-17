@@ -1,10 +1,10 @@
 <template>
   <div class="post-list">
-    <h2 class="title">搜索结果</h2>
+    <h2 class="title">Search Results</h2>
 
-    <div v-if="loading" class="status">加载中…</div>
-    <div v-else-if="error" class="status error">请求出错：{{ error }}</div>
-    <div v-else-if="posts.length === 0" class="status">暂无结果。</div>
+    <div v-if="loading" class="status">Loading…</div>
+    <div v-else-if="error" class="status error">Error: {{ error }}</div>
+    <div v-else-if="posts.length === 0" class="status">No results found.</div>
 
     <div v-else class="cards">
       <div
@@ -27,7 +27,7 @@
         </div>
 
         <div class="thumb-wrapper" v-if="post.thumbnail">
-          <img class="thumb" :src="post.thumbnail" alt="缩略图" />
+          <img class="thumb" :src="post.thumbnail" alt="thumbnail" />
         </div>
 
         <div class="card-footer">
@@ -50,7 +50,7 @@ import api, { Post as APIPost } from '@/api/backend-api'
 import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-// 在 BasicPost 的基础上，扩展卡片需要的字段
+// Extend APIPost with the extra fields needed by this card
 interface FullPost extends APIPost {
   authorName: string
   authorAvatar?: string
@@ -85,9 +85,9 @@ const relativeTime = (iso: string): string => {
   const then = new Date(iso).getTime()
   const diff = Date.now() - then
   const m = 60*1000, h = 60*m, d = 24*h
-  if (diff < m)  return '刚刚'
-  if (diff < h)  return `${Math.floor(diff/m)} 分钟前`
-  if (diff < d)  return `${Math.floor(diff/h)} 小时前`
+  if (diff < m)  return 'just now'
+  if (diff < h)  return `${Math.floor(diff/m)} minutes ago`
+  if (diff < d)  return `${Math.floor(diff/h)} hours ago`
   const dt = new Date(iso)
   return `${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`
 }
@@ -97,10 +97,10 @@ async function doSearch() {
   error.value = null
   try {
     const res = await api.searchPosts(q.value)        // APIPost[]
-    // 映射成 FullPost，加上默认值
+    // Map into FullPost, with defaults
     posts.value = res.data.map(p => ({
       ...p,
-      authorName: '匿名',
+      authorName: 'Anonymous',
       authorAvatar: undefined,
       createdAt: new Date().toISOString(),
       views: 0,
@@ -108,7 +108,7 @@ async function doSearch() {
       thumbnail: undefined,
     }))
   } catch (e: any) {
-    error.value = e.response?.data?.message || e.message || '未知错误'
+    error.value = e.response?.data?.message || e.message || 'Unknown error'
     posts.value = []
   } finally {
     loading.value = false
@@ -214,7 +214,7 @@ onMounted(doSearch)
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
 
-  /* 标准属性 */
+  /* Standard */
   display: box;
   line-clamp: 1;
   box-orient: vertical;

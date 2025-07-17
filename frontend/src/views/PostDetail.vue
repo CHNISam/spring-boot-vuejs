@@ -1,45 +1,58 @@
 <template>
   <div class="post-detail">
-    <!-- 返回按钮 -->
-    <button class="back-btn" @click="goBack">← 返回</button>
+    <!-- Back button -->
+    <button class="back-btn" @click="goBack">← Back</button>
 
-    <!-- 加载 / 错误 -->
-    <div v-if="loading" class="status">加载中…</div>
-    <div v-else-if="error" class="status error">加载失败：{{ error }}</div>
+    <!-- Loading / Error -->
+    <div v-if="loading" class="status">Loading…</div>
+    <div v-else-if="error" class="status error">Error loading: {{ error }}</div>
 
-    <!-- 内容 -->
+    <!-- Content -->
     <div v-else>
       <div v-if="post" class="card">
-        <!-- 标题 -->
+        <!-- Title -->
         <h1 class="title">{{ post.title }}</h1>
 
-        <!-- 元信息 -->
+        <!-- Meta info -->
         <div class="meta">
           <span class="pub-date">{{ formatDate(post.createdAt) }}</span>
           <div class="stats">
-            <button class="stat-item views" @click="scrollToComments" aria-label="查看阅读量">
-              <svg viewBox="0 0 24 24"><path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            <button
+              class="stat-item views"
+              @click="scrollToComments"
+              aria-label="View views"
+            >
+              <svg viewBox="0 0 24 24">
+                <path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
               <span>{{ post.views }}</span>
             </button>
-            <button class="stat-item comments" @click="scrollToComments" aria-label="查看评论">
-              <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/></svg>
+            <button
+              class="stat-item comments"
+              @click="scrollToComments"
+              aria-label="View comments"
+            >
+              <svg viewBox="0 0 24 24">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/>
+              </svg>
               <span>{{ post.comments }}</span>
             </button>
           </div>
         </div>
 
-        <!-- 正文 -->
+        <!-- Body -->
         <div class="content" v-html="post.content"></div>
 
-        <!-- 评论区 -->
+        <!-- Comments Section -->
         <div class="comments-section" ref="commentsSection" id="comments">
-          <h2 class="comments-title">评论（{{ comments.length }}）</h2>
+          <h2 class="comments-title">Comments ({{ comments.length }})</h2>
 
           <div v-if="comments.length === 0" class="no-comments">
-            还没有评论，快来抢沙发～
+            No comments yet. Be the first to comment!
           </div>
 
-          <!-- 评论 / 回复列表（已扁平化） -->
+          <!-- Flattened comments & replies -->
           <div
             v-for="c in comments"
             :key="c.id"
@@ -63,31 +76,28 @@
               </div>
 
               <div class="comment-actions-row">
-                <button class="action-btn reply" @click="startReply(c)">回复</button>
+                <button class="action-btn reply" @click="startReply(c)">Reply</button>
                 <template v-if="currentUserId !== null && c.userId === currentUserId">
-                  <button class="action-btn edit" @click="editComment(c)">编辑</button>
-                  <button class="action-btn delete" @click="deleteComment(c)">删除</button>
+                  <button class="action-btn edit" @click="editComment(c)">Edit</button>
+                  <button class="action-btn delete" @click="deleteComment(c)">Delete</button>
                 </template>
               </div>
             </div>
           </div>
 
-          <!-- 正在回复提示条 -->
+          <!-- Reply banner -->
           <transition name="fade">
-            <div
-              v-if="replyTarget"
-              class="reply-banner"
-            >
-              正在回复 @{{ replyTarget.username }}
-              <button class="reply-cancel-btn" @click="cancelReply" aria-label="取消回复">×</button>
+            <div v-if="replyTarget" class="reply-banner">
+              Replying to @{{ replyTarget.username }}
+              <button class="reply-cancel-btn" @click="cancelReply" aria-label="Cancel reply">×</button>
             </div>
           </transition>
 
-          <!-- 发表评论 -->
+          <!-- New comment input -->
           <div class="comment-input">
             <textarea
               v-model="newComment"
-              placeholder="写下你的评论…"
+              placeholder="Write a comment…"
               @keydown.enter.ctrl.exact.prevent="postComment"
               @keydown.meta.enter.exact.prevent="postComment"
             ></textarea>
@@ -96,13 +106,13 @@
               @click="postComment"
               :disabled="!newComment.trim()"
             >
-              发送
+              Post
             </button>
           </div>
         </div>
       </div>
 
-      <div v-else class="status">帖子不存在或已被删除。</div>
+      <div v-else class="status">Post not found or has been deleted.</div>
     </div>
   </div>
 </template>
@@ -132,7 +142,7 @@ interface CommentRaw {
 }
 
 interface CommentDisplay extends CommentRaw {
-  depth: number   // 0=顶层, 1+=回复缩进
+  depth: number
 }
 
 /* ------------ Refs ------------ */
@@ -174,7 +184,7 @@ async function fetchPost() {
     post.value = res.data
     await fetchComments()
   } catch (e: any) {
-    error.value = e.response?.data?.message || e.message || '未知错误'
+    error.value = e.response?.data?.message || e.message || 'Unknown error'
   } finally {
     loading.value = false
   }
@@ -197,39 +207,38 @@ function buildUserMap() {
 }
 
 function buildThread() {
-  // 按创建时间排序，父级先出现
   const sorted = [...commentRaw.value].sort(
-    (a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   )
-  // 建树
   const children: Record<number, CommentRaw[]> = {}
   sorted.forEach(c => {
-    if (c.replyToId) {
-      (children[c.replyToId] ||= []).push(c)
-    }
+    if (c.replyToId) (children[c.replyToId] ||= []).push(c)
   })
   const flat: CommentDisplay[] = []
-  sorted
-    .filter(c => !c.replyToId) // 顶层
-    .forEach(root => {
-      flat.push({...root, depth:0})
-      pushChildren(root, 1, flat, children)
-    })
+  sorted.filter(c => !c.replyToId).forEach(root => {
+    flat.push({ ...root, depth: 0 })
+    pushChildren(root, 1, flat, children)
+  })
   comments.value = flat
 }
 
-function pushChildren(parent: CommentRaw, depth: number, out: CommentDisplay[], children: Record<number, CommentRaw[]>) {
+function pushChildren(
+  parent: CommentRaw,
+  depth: number,
+  out: CommentDisplay[],
+  children: Record<number, CommentRaw[]>
+) {
   const kids = children[parent.id]
   if (!kids) return
   kids.forEach(k => {
-    out.push({...k, depth})
-    pushChildren(k, depth+1, out, children)
+    out.push({ ...k, depth })
+    pushChildren(k, depth + 1, out, children)
   })
 }
 
 function replyName(id?: number | null) {
   if (!id) return ''
-  return userMap.value[id] ?? '未知'
+  return userMap.value[id] ?? 'Unknown'
 }
 
 function goBack() {
@@ -242,11 +251,13 @@ function formatDate(iso: string) {
 }
 
 function timeAgo(iso: string) {
-  const now = Date.now(), past = new Date(iso).getTime(), diff = now - past
+  const now = Date.now(),
+        past = new Date(iso).getTime(),
+        diff = now - past
   const m = 60e3, h = 60*m, d = 24*h
-  if (diff < m) return '刚刚'
-  if (diff < h) return `${Math.floor(diff/m)} 分钟前`
-  if (diff < d) return `${Math.floor(diff/h)} 小时前`
+  if (diff < m) return 'just now'
+  if (diff < h) return `${Math.floor(diff/m)} minutes ago`
+  if (diff < d) return `${Math.floor(diff/h)} hours ago`
   return formatDate(iso)
 }
 
@@ -264,9 +275,6 @@ function startReply(c: CommentRaw | CommentDisplay) {
     text: c.text,
     createdAt: c.createdAt
   }
-  // 不强行塞 textarea 文本；保持纯净，由用户输入（体验更清爽）
-  // 若想自动带前缀，可解除注释：
-  // newComment.value = `@${c.username} `
 }
 
 function cancelReply() {
@@ -280,34 +288,33 @@ async function postComment() {
   const payload: any = { text: txt }
   if (replyTarget.value) payload.replyToId = replyTarget.value.id
 
-  const res = await axios.post<CommentRaw>(
+  await axios.post<CommentRaw>(
     `/api/posts/${post.value.id}/comments`,
     payload
   )
 
   newComment.value = ''
   replyTarget.value = null
-
-  // 重新拉完整列表，保证排序正确
   await fetchComments()
 }
 
 async function deleteComment(c: CommentDisplay) {
   if (!post.value) return
-  if (!confirm('确定要删除这条评论吗？')) return
+  if (!confirm('Are you sure you want to delete this comment?')) return
   await axios.delete(`/api/posts/${post.value.id}/comments/${c.id}`)
   await fetchComments()
 }
 
 async function editComment(c: CommentDisplay) {
   if (!post.value) return
-  const txt = prompt('编辑评论内容：', c.text)?.trim()
+  const txt = prompt('Edit comment:', c.text)?.trim()
   if (txt == null || txt === c.text) return
   const payload: any = { text: txt, replyToId: c.replyToId ?? null }
   await axios.put(`/api/posts/${post.value.id}/comments/${c.id}`, payload)
   await fetchComments()
 }
 </script>
+
 
 <style scoped>
 .post-detail {

@@ -26,7 +26,7 @@
     </form>
 
     <nav class="header-right">
-      <router-link to="/">Hello</router-link>
+      <router-link to="/">Home</router-link>
       <router-link to="/callservice">Service</router-link>
       <router-link to="/bootstrap">Bootstrap</router-link>
       <router-link to="/user">User</router-link>

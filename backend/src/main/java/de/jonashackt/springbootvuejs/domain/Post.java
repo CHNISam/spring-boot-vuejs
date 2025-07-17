@@ -18,7 +18,7 @@ public class Post {
 
     private String title;
 
-    @Column(length = 2048)
+    @Column(columnDefinition = "TEXT")   // 改这里
     private String content;
 
     /** 自动填充的创建时间 */

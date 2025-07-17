@@ -3,7 +3,7 @@
   <div class="hello">
     <h1>{{ hellomsg }}</h1>
 
-    <h2>查看源码：</h2>
+    <h2>Source Code:</h2>
     <ul>
       <li>
         <a href="https://github.com/CHNISam/spring-boot-vuejs" target="_blank">
@@ -12,18 +12,18 @@
       </li>
     </ul>
 
-    <h3>功能演示：</h3>
+    <h3>Features:</h3>
     <ul>
-      <!-- 保留“登录到受保护部分” -->
-      <li>登录到受保护部分：<router-link to="/login">/login</router-link></li>
-      <!-- 新增动态列表 -->
-      <li>查看动态列表：<router-link to="/posts">/posts</router-link></li>
-      <!-- 新增发表新帖（投稿） -->
-      <li>发表新帖（投稿）：<router-link to="/editor">/editor</router-link></li>
-      <!-- 新增搜索功能 -->
-      <li>帖子搜索：<router-link to="/search">/search</router-link></li>
-      <!-- 保留示例受保护页面 -->
-      <li>受保护页面示例：<router-link to="/protected">/protected</router-link></li>
+      <!-- keep “Log in to protected area” -->
+      <li>Log in to protected area: <router-link to="/login">/login</router-link></li>
+      <!-- new post list -->
+      <li>View post list: <router-link to="/posts">/posts</router-link></li>
+      <!-- new create-post (editor) -->
+      <li>Create new post (Editor): <router-link to="/editor">/editor</router-link></li>
+      <!-- new search -->
+      <li>Search posts: <router-link to="/search">/search</router-link></li>
+      <!-- keep example protected page -->
+      <li>Protected page example: <router-link to="/protected">/protected</router-link></li>
     </ul>
   </div>
 </template>
@@ -50,20 +50,20 @@ export default defineComponent({
       const credentials = (store.state as any).credentials
 
       if (isLoggedIn) {
-        console.log('✅ 用户已登录 - 用户信息:', currentUser)
-        console.log('🆔 用户ID:', currentUser ? currentUser.id : '无')
-        console.log('🔐 凭证状态:', credentials !== null ? '已设置' : '未设置')
-        console.log('🌐 尝试访问 /api/user/me...')
+        console.log('✅ User is logged in – User info:', currentUser)
+        console.log('🆔 User ID:', currentUser ? currentUser.id : 'None')
+        console.log('🔐 Credentials status:', credentials !== null ? 'Set' : 'Not set')
+        console.log('🌐 Attempting to GET /api/user/me…')
         api.getCurrentUser()
           .then(response => {
-            console.log('🔄 /api/user/me 响应:', response.data)
+            console.log('🔄 /api/user/me response:', response.data)
           })
           .catch(error => {
-            console.error('❌ /api/user/me 请求失败:', error.message)
+            console.error('❌ Failed to GET /api/user/me:', error.message)
           })
       } else {
-        console.log('🔒 用户未登录')
-        console.log('ℹ️ 访问 /login 进行登录')
+        console.log('🔒 User is not logged in')
+        console.log('ℹ️ Please navigate to /login to sign in')
       }
     })
 
@@ -71,7 +71,6 @@ export default defineComponent({
   }
 })
 </script>
-
 
 <style scoped lang="scss">
 h1, h2 {
