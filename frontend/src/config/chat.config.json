@@ -1,6 +1,6 @@
 [
   {
-    "name": "智谱 BigModel",
+    "name": "智谱",
     "url": "https://open.bigmodel.cn/api/paas/v4/chat/completions",
     "apiKey": "76915445ad0955e6442a0aa6d24ad251.27G8TUC8AM9euXxQ",
     "formatter": "bigmodel"

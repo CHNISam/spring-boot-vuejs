@@ -1,10 +1,10 @@
 <template>
   <div class="post-list">
-    <h2 class="title">帖子列表</h2>
+    <h2 class="title">Post List</h2>
 
-    <div v-if="loading" class="status">加载中…</div>
-    <div v-else-if="error" class="status error">请求出错：{{ error }}</div>
-    <div v-else-if="posts.length === 0" class="status">暂无帖子。</div>
+    <div v-if="loading" class="status">Loading…</div>
+    <div v-else-if="error" class="status error">Error loading: {{ error }}</div>
+    <div v-else-if="posts.length === 0" class="status">No posts yet.</div>
 
     <div v-else class="cards">
       <div
@@ -27,7 +27,7 @@
         </div>
 
         <div class="thumb-wrapper" v-if="post.thumbnail">
-          <img class="thumb" :src="post.thumbnail" alt="缩略图" />
+          <img class="thumb" :src="post.thumbnail" alt="Thumbnail" />
         </div>
 
         <div class="card-footer">
@@ -84,9 +84,9 @@ const relativeTime = (iso: string): string => {
   const then = new Date(iso).getTime()
   const diff = Date.now() - then
   const m = 60*1000, h = 60*m, d = 24*h
-  if (diff < m)  return '刚刚'
-  if (diff < h)  return `${Math.floor(diff/m)} 分钟前`
-  if (diff < d)  return `${Math.floor(diff/h)} 小时前`
+  if (diff < m)  return 'just now'
+  if (diff < h)  return `${Math.floor(diff/m)} minutes ago`
+  if (diff < d)  return `${Math.floor(diff/h)} hours ago`
   const dt = new Date(iso)
   return `${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`
 }
@@ -95,10 +95,8 @@ async function fetchPosts() {
   loading.value = true
   error.value = null
   try {
-    // 先获取基础列表
     const res = await axios.get<Post[]>('/api/posts')
     posts.value = res.data.map(p => ({ ...p, comments: p.comments ?? 0 }))
-    // 并行获取每条的评论数
     await Promise.all(
       posts.value.map(async p => {
         const cntRes = await axios.get<number>(`/api/posts/${p.id}/comments/count`)
@@ -106,7 +104,7 @@ async function fetchPosts() {
       })
     )
   } catch (e: any) {
-    error.value = e.response?.data?.message || e.message || '未知错误'
+    error.value = e.response?.data?.message || e.message || 'Unknown error'
   } finally {
     loading.value = false
   }
@@ -168,7 +166,6 @@ onMounted(fetchPosts)
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  flex-shrink: 0;
 }
 .meta {
   margin-left: 10px;
@@ -200,9 +197,14 @@ onMounted(fetchPosts)
   font-size: 0.8rem;
   line-height: 1.4;
   color: var(--text-main);
+
+  display: -webkit-box;
+  -webkit-line-clamp: 1;      /* clamp to 1 line */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-/* 缩略图只有存在时才有高度 */
+/* only show thumbnail when available */
 .thumb-wrapper {
   height: auto;
 }
@@ -217,7 +219,6 @@ onMounted(fetchPosts)
   align-items: center;
   padding: 6px 10px;
   border-top: 1px solid var(--border);
-  background: var(--card-bg);
 }
 .foot-item {
   display: flex;
@@ -240,15 +241,4 @@ onMounted(fetchPosts)
   stroke: currentColor;
   fill: none;
 }
-.excerpt {
-  font-size: 0.8rem;
-  line-height: 1.4;
-  color: var(--text-main);
-
-  display: -webkit-box;
-  -webkit-line-clamp: 1;      /* 最多三行 */
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
 </style>

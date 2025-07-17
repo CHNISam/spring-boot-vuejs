@@ -3,7 +3,7 @@ import PostEditor from '@/views/PostEditor.vue';
 import PostList from '@/views/PostList.vue';
 import Search from "@/views/Search.vue";
 import { createRouter, createWebHistory, RouteRecordRaw } from "vue-router";
-import Bootstrap from "../views/Bootstrap.vue";
+import AI from "../views/AI.vue";
 import Home from "../views/Home.vue";
 import Login from "../views/Login.vue";
 import Protected from "../views/Protected.vue";
@@ -15,7 +15,7 @@ import store from "../store";
 const routes: Array<RouteRecordRaw> = [
   { path: "/", component: Home },
   { path: "/callservice", component: Service },
-  { path: "/bootstrap", component: Bootstrap },
+  { path: "/ai", component: AI },
   { path: "/user", component: User },
   { path: "/login", component: Login },
   {

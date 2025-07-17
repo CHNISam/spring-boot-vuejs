@@ -9,37 +9,75 @@
         <select v-model="model" class="model-select">
           <option v-for="m in models" :key="m.value" :value="m.value">{{ m.label }}</option>
         </select>
-        <input v-model="newModel" placeholder="新增模型" class="input-add" @keyup.enter="addModel" />
-        <button class="btn-add" @click="addModel">添加</button>
+        <input
+          v-model="newModel"
+          placeholder="Add new model"
+          class="input-add"
+          @keyup.enter="addModel"
+        />
+        <button class="btn-add" @click="addModel">Add</button>
       </div>
     </header>
 
     <div class="chat-body" ref="bodyRef">
-      <div v-for="(msg, idx) in messages" :key="idx" :class="['chat-message', msg.sender]">
-        <div v-if="msg.sender==='ai'" class="avatar">🤖</div>
+      <div
+        v-for="(msg, idx) in messages"
+        :key="idx"
+        :class="['chat-message', msg.sender]"
+      >
+        <div v-if="msg.sender === 'ai'" class="avatar">🤖</div>
         <div class="bubble">
           <p class="text">{{ msg.text }}</p>
-          <img v-if="msg.image" :src="msg.image" class="image-preview" alt="sent image" />
+          <img
+            v-if="msg.image"
+            :src="msg.image"
+            class="image-preview"
+            alt="Sent image preview"
+          />
         </div>
       </div>
-      <div v-if="loading" class="typing-indicator">AI 正在输入…</div>
+      <div v-if="loading" class="typing-indicator">AI is typing…</div>
     </div>
 
     <footer class="chat-footer">
-      <button class="btn-attach" @click="triggerFileInput" :disabled="loading">
+      <button
+        class="btn-attach"
+        @click="triggerFileInput"
+        :disabled="loading"
+      >
         <span class="attach-icon">📎</span>
-        <span class="attach-text">添加图片</span>
+        <span class="attach-text">Attach Image</span>
       </button>
-      <input type="file" accept="image/*" ref="fileInputRef" class="hidden" @change="onFileChange" />
-      <input v-model="text" @keyup.enter="send" :disabled="loading" placeholder="Type a message..." class="input-text" />
-      <button class="btn-send" @click="send" :disabled="loading || (!text && !imageFile)">
-        {{ loading ? '发送中…' : '发送' }}
+      <input
+        type="file"
+        accept="image/*"
+        ref="fileInputRef"
+        class="hidden"
+        @change="onFileChange"
+      />
+      <input
+        v-model="text"
+        @keyup.enter="send"
+        :disabled="loading"
+        placeholder="Type your message..."
+        class="input-text"
+      />
+      <button
+        class="btn-send"
+        @click="send"
+        :disabled="loading || (!text && !imageFile)"
+      >
+        {{ loading ? 'Sending…' : 'Send' }}
       </button>
     </footer>
 
     <div v-if="preview" class="preview-container">
       <div class="preview-box">
-        <img :src="preview" class="preview-thumb" alt="preview image" />
+        <img
+          :src="preview"
+          class="preview-thumb"
+          alt="Image preview"
+        />
         <button class="btn-remove" @click="removeImage">✕</button>
       </div>
     </div>
@@ -57,10 +95,17 @@ const defaultModels = [
   { value: 'gpt-4', label: 'GPT-4' },
   { value: 'chatglm', label: 'ChatGLM-6B' }
 ];
-const models = ref(JSON.parse(localStorage.getItem('chat_models') || 'null') || defaultModels);
+const models = ref(
+  JSON.parse(localStorage.getItem('chat_models') || 'null') ||
+  defaultModels
+);
 const model = ref(models.value[0].value);
 const newModel = ref('');
-watch(models, (val) => localStorage.setItem('chat_models', JSON.stringify(val)), { deep: true });
+watch(
+  models,
+  (val) => localStorage.setItem('chat_models', JSON.stringify(val)),
+  { deep: true }
+);
 
 const messages = reactive([]);
 const loading = ref(false);
@@ -70,14 +115,20 @@ const preview = ref(null);
 const fileInputRef = ref(null);
 const bodyRef = ref(null);
 
-watch(() => messages.length, async () => {
-  await nextTick();
-  if (bodyRef.value) bodyRef.value.scrollTop = bodyRef.value.scrollHeight;
-});
+watch(
+  () => messages.length,
+  async () => {
+    await nextTick();
+    if (bodyRef.value) {
+      bodyRef.value.scrollTop = bodyRef.value.scrollHeight;
+    }
+  }
+);
 
 function triggerFileInput() {
   fileInputRef.value?.click();
 }
+
 function onFileChange(e) {
   const f = e.target.files?.[0];
   if (f?.type.startsWith('image/')) {
@@ -85,11 +136,13 @@ function onFileChange(e) {
     preview.value = URL.createObjectURL(f);
   }
 }
+
 function removeImage() {
   if (preview.value) URL.revokeObjectURL(preview.value);
   imageFile.value = null;
   preview.value = null;
 }
+
 function addModel() {
   const v = newModel.value.trim();
   if (!v) return;
@@ -98,16 +151,9 @@ function addModel() {
   newModel.value = '';
 }
 
-// 关键：构造不同平台的payload
 function buildPayload(cfg, message) {
   switch (cfg.formatter) {
     case 'bigmodel':
-      return {
-        model: model.value,
-        messages: [{ role: 'user', content: message }],
-        temperature: 0.95,
-        top_p: 0.7
-      };
     case 'openai':
       return {
         model: model.value,
@@ -125,7 +171,6 @@ function buildPayload(cfg, message) {
   }
 }
 
-// ** 关键：发请求 **
 async function send() {
   if (loading.value || (!text.value.trim() && !imageFile.value)) return;
 
@@ -140,11 +185,8 @@ async function send() {
     const cfg = selectedConfig.value;
     const payload = buildPayload(cfg, text.value);
 
-    // 智谱、OpenAI、Claude各自用自己的头
     const headers = { 'Content-Type': 'application/json' };
-    if (cfg.formatter === 'bigmodel') {
-      headers['Authorization'] = `Bearer ${cfg.apiKey}`;
-    } else if (cfg.formatter === 'openai') {
+    if (cfg.formatter === 'bigmodel' || cfg.formatter === 'openai') {
       headers['Authorization'] = `Bearer ${cfg.apiKey}`;
     } else if (cfg.formatter === 'claude') {
       headers['x-api-key'] = cfg.apiKey;
@@ -156,24 +198,24 @@ async function send() {
       body: JSON.stringify(payload)
     });
 
-    if (res.status === 401) throw new Error('401 Unauthorized，请检查你的API Key或接口权限');
-    if (!res.ok) throw new Error(`接口异常(${res.status})`);
+    if (res.status === 401)
+      throw new Error('401 Unauthorized: Check your API key or permissions');
+    if (!res.ok) throw new Error(`API error (${res.status})`);
 
     const data = await res.json();
-    console.log('原始返回（调试用）：', data);
+    console.log('Raw response:', data);
 
-    // 智谱/GLM风格
     const reply =
       data.choices?.[0]?.message?.content ||
       data.choices?.[0]?.content ||
       data.reply ||
       data.text ||
-      '（无回复）';
+      '(no reply)';
 
     messages.push({ sender: 'ai', text: reply, image: null });
   } catch (err) {
     console.error(err);
-    messages.push({ sender: 'ai', text: `❌ 发送失败：${err.message}` });
+    messages.push({ sender: 'ai', text: `❌ Send failed: ${err.message}` });
   } finally {
     loading.value = false;
     text.value = '';
@@ -181,6 +223,7 @@ async function send() {
   }
 }
 </script>
+
 <style scoped>
 .chat-container {
   --bg-dark:     #0d1117;
@@ -204,12 +247,10 @@ async function send() {
   padding: 12px 20px;
   background: var(--bg-light);
   display: flex;
-  justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid #30363d;
 }
-.header-left,
-.header-right {
+.header-left {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -220,21 +261,13 @@ async function send() {
   font-weight: 600;
 }
 .model-select,
-.input-config {
+.input-add {
   padding: 6px 12px;
   background: var(--bg-dark);
   border: 1px solid #30363d;
   border-radius: 8px;
   color: var(--fg-primary);
   font-size: 0.9rem;
-}
-.input-add {
-  padding: 6px 10px;
-  background: var(--bg-dark);
-  border: 1px dashed #30363d;
-  border-radius: 8px;
-  color: var(--fg-primary);
-  width: 100px;
 }
 .btn-add {
   padding: 6px 10px;
@@ -294,7 +327,7 @@ async function send() {
   white-space: pre-wrap;
 }
 
-/* 图片预览 */
+/* Image preview */
 .image-preview {
   display: block;
   max-width: 100%;
@@ -330,7 +363,7 @@ async function send() {
   border-color: var(--accent);
 }
 
-/* Attach 按钮 */
+/* Attach button */
 .btn-attach {
   display: flex;
   align-items: center;
@@ -354,7 +387,7 @@ async function send() {
   transform: translateY(-1px);
 }
 
-/* Send 按钮 */
+/* Send button */
 .btn-send {
   padding: 8px 18px;
   background: var(--accent);
@@ -368,7 +401,7 @@ async function send() {
   cursor: not-allowed;
 }
 
-/* Image Preview Box */
+/* Preview box */
 .preview-container {
   position: absolute;
   bottom: 90px;
@@ -390,14 +423,14 @@ async function send() {
   right: -6px;
   background: var(--accent);
   color: #fff;
- 	border: none;
+  border: none;
   border-radius: 50%;
   width: 22px;
   height: 22px;
   cursor: pointer;
 }
 
-/* 隐藏元素 */
+/* Utility */
 .hidden {
   display: none;
 }
