@@ -1,0 +1,20 @@
+[
+  {
+    "name": "智谱 BigModel",
+    "url": "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+    "apiKey": "76915445ad0955e6442a0aa6d24ad251.27G8TUC8AM9euXxQ",
+    "formatter": "bigmodel"
+  },
+  {
+    "name": "OpenAI",
+    "url": "https://api.openai.com/v1/chat/completions",
+    "apiKey": "sk-XXX",
+    "formatter": "openai"
+  },
+  {
+    "name": "Claude",
+    "url": "https://api.anthropic.com/v1/complete",
+    "apiKey": "claude-key",
+    "formatter": "claude"
+  }
+]

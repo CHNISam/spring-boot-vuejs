@@ -1,79 +1,42 @@
 <template>
   <div class="chat-container">
-    <!-- Header -->
     <header class="chat-header">
       <div class="header-left">
         <h2 class="title">AI Chat</h2>
+        <select v-model="selectedConfig" class="model-select">
+          <option v-for="c in configs" :key="c.name" :value="c">{{ c.name }}</option>
+        </select>
         <select v-model="model" class="model-select">
           <option v-for="m in models" :key="m.value" :value="m.value">{{ m.label }}</option>
         </select>
         <input v-model="newModel" placeholder="新增模型" class="input-add" @keyup.enter="addModel" />
         <button class="btn-add" @click="addModel">添加</button>
       </div>
-      <div class="header-right">
-        <input v-model="apiUrl" placeholder="API URL" class="input-config" />
-        <input v-model="apiKey" placeholder="API Key" class="input-config" />
-      </div>
     </header>
 
-    <!-- Body -->
     <div class="chat-body" ref="bodyRef">
-      <div
-        v-for="(msg, idx) in messages"
-        :key="idx"
-        :class="['chat-message', msg.sender]"
-      >
+      <div v-for="(msg, idx) in messages" :key="idx" :class="['chat-message', msg.sender]">
         <div v-if="msg.sender==='ai'" class="avatar">🤖</div>
         <div class="bubble">
           <p class="text">{{ msg.text }}</p>
-          <img
-            v-if="msg.image"
-            :src="msg.image"
-            class="image-preview"
-            alt="sent image"
-          />
+          <img v-if="msg.image" :src="msg.image" class="image-preview" alt="sent image" />
         </div>
       </div>
       <div v-if="loading" class="typing-indicator">AI 正在输入…</div>
     </div>
 
-    <!-- Footer -->
     <footer class="chat-footer">
-      <button
-        class="btn-attach"
-        @click="triggerFileInput"
-        :disabled="loading"
-      >
+      <button class="btn-attach" @click="triggerFileInput" :disabled="loading">
         <span class="attach-icon">📎</span>
         <span class="attach-text">添加图片</span>
       </button>
-      <input
-        type="file"
-        accept="image/*"
-        ref="fileInput"
-        class="hidden"
-        @change="onFileChange"
-      />
-
-      <input
-        type="text"
-        v-model="text"
-        @keyup.enter="send"
-        :disabled="loading"
-        placeholder="Type a message..."
-        class="input-text"
-      />
-
-      <button
-        class="btn-send"
-        @click="send"
-        :disabled="loading || (!text.trim() && !imageFile)"
-      >
+      <input type="file" accept="image/*" ref="fileInputRef" class="hidden" @change="onFileChange" />
+      <input v-model="text" @keyup.enter="send" :disabled="loading" placeholder="Type a message..." class="input-text" />
+      <button class="btn-send" @click="send" :disabled="loading || (!text && !imageFile)">
         {{ loading ? '发送中…' : '发送' }}
       </button>
     </footer>
 
-    <!-- Image Preview -->
     <div v-if="preview" class="preview-container">
       <div class="preview-box">
         <img :src="preview" class="preview-thumb" alt="preview image" />
@@ -84,115 +47,156 @@
 </template>
 
 <script setup>
-import { nextTick, onMounted, reactive, ref, watch } from 'vue'
+import configsData from '@/config/chat.config.json';
+import { nextTick, reactive, ref, watch } from 'vue';
 
-// —— 可填写并自动存储的配置 —— 
-const apiUrl = ref(localStorage.getItem('chat_apiUrl') || 'https://open.bigmodel.cn/api/paas/v4/chat/completions')
-const apiKey = ref(localStorage.getItem('chat_apiKey') || '76915445ad0955e6442a0aa6d24ad251.27G8TUC8AM9euXxQ')
-// 保存时机
-watch(apiUrl, v => localStorage.setItem('chat_apiUrl', v))
-watch(apiKey, v => localStorage.setItem('chat_apiKey', v))
-// —— 结束 ——
-
-// 默认模型列表 + 本地持久化
+const configs = ref(configsData);
+const selectedConfig = ref(configsData[0]);
 const defaultModels = [
   { value: 'glm-4-flash', label: 'GLM-4-Flash' },
   { value: 'gpt-4', label: 'GPT-4' },
   { value: 'chatglm', label: 'ChatGLM-6B' }
-]
-const models = ref([])
-const model = ref('')
-const newModel = ref('')
+];
+const models = ref(JSON.parse(localStorage.getItem('chat_models') || 'null') || defaultModels);
+const model = ref(models.value[0].value);
+const newModel = ref('');
+watch(models, (val) => localStorage.setItem('chat_models', JSON.stringify(val)), { deep: true });
 
-onMounted(() => {
-  const stored = JSON.parse(localStorage.getItem('chat_models') || 'null')
-  models.value = stored || defaultModels
-  model.value = models.value[0].value
-})
-
-// 新增模型并存储
-function addModel() {
-  if (!newModel.value.trim()) return
-  models.value.push({ value: newModel.value, label: newModel.value })
-  localStorage.setItem('chat_models', JSON.stringify(models.value))
-  model.value = newModel.value
-  newModel.value = ''
-}
-
-// 消息和交互
-const messages = reactive([])
-const loading = ref(false)
-const text = ref('')
-const imageFile = ref(null)
-const preview = ref(null)
-const fileInput = ref(null)
-const bodyRef = ref(null)
+const messages = reactive([]);
+const loading = ref(false);
+const text = ref('');
+const imageFile = ref(null);
+const preview = ref(null);
+const fileInputRef = ref(null);
+const bodyRef = ref(null);
 
 watch(() => messages.length, async () => {
-  await nextTick()
-  const el = bodyRef.value
-  if (el) el.scrollTop = el.scrollHeight
-})
+  await nextTick();
+  if (bodyRef.value) bodyRef.value.scrollTop = bodyRef.value.scrollHeight;
+});
 
 function triggerFileInput() {
-  fileInput.value.click()
+  fileInputRef.value?.click();
+}
+function onFileChange(e) {
+  const f = e.target.files?.[0];
+  if (f?.type.startsWith('image/')) {
+    imageFile.value = f;
+    preview.value = URL.createObjectURL(f);
+  }
+}
+function removeImage() {
+  if (preview.value) URL.revokeObjectURL(preview.value);
+  imageFile.value = null;
+  preview.value = null;
+}
+function addModel() {
+  const v = newModel.value.trim();
+  if (!v) return;
+  models.value.push({ value: v, label: v });
+  model.value = v;
+  newModel.value = '';
 }
 
-function onFileChange(e) {
-  const f = e.target.files[0]
-  if (f && f.type.startsWith('image/')) {
-    imageFile.value = f
-    preview.value = URL.createObjectURL(f)
+// 关键：构造不同平台的payload
+function buildPayload(cfg, message) {
+  switch (cfg.formatter) {
+    case 'bigmodel':
+      return {
+        model: model.value,
+        messages: [{ role: 'user', content: message }],
+        temperature: 0.95,
+        top_p: 0.7
+      };
+    case 'openai':
+      return {
+        model: model.value,
+        messages: [{ role: 'user', content: message }],
+        temperature: 0.95,
+        top_p: 0.7
+      };
+    case 'claude':
+      return {
+        prompt: message,
+        model: model.value
+      };
+    default:
+      throw new Error(`Unknown formatter: ${cfg.formatter}`);
   }
 }
 
-function removeImage() {
-  if (preview.value) URL.revokeObjectURL(preview.value)
-  imageFile.value = null
-  preview.value = null
-}
-
+// ** 关键：发请求 **
 async function send() {
-  if (loading.value || (!text.value.trim() && !imageFile.value)) return
+  if (loading.value || (!text.value.trim() && !imageFile.value)) return;
 
-  messages.push({ sender: 'user', text: text.value.trim(), image: imageFile.value ? URL.createObjectURL(imageFile.value) : null })
+  messages.push({
+    sender: 'user',
+    text: text.value,
+    image: preview.value
+  });
+  loading.value = true;
 
-  loading.value = true
   try {
-    const fd = new FormData()
-    fd.append('model', model.value)
-    fd.append('message', text.value.trim())
-    fd.append('apiKey', apiKey.value)
-    if (imageFile.value) fd.append('image', imageFile.value)
+    const cfg = selectedConfig.value;
+    const payload = buildPayload(cfg, text.value);
 
-    const res = await fetch(apiUrl.value, { method: 'POST', body: fd })
-    const { reply } = await res.json()
+    // 智谱、OpenAI、Claude各自用自己的头
+    const headers = { 'Content-Type': 'application/json' };
+    if (cfg.formatter === 'bigmodel') {
+      headers['Authorization'] = `Bearer ${cfg.apiKey}`;
+    } else if (cfg.formatter === 'openai') {
+      headers['Authorization'] = `Bearer ${cfg.apiKey}`;
+    } else if (cfg.formatter === 'claude') {
+      headers['x-api-key'] = cfg.apiKey;
+    }
 
-    messages.push({ sender: 'ai', text: reply || '（AI 未返回内容）', image: null })
-  } catch {
-    messages.push({ sender: 'ai', text: '❌ 发送失败，请检查网络或配置', image: null })
+    const res = await fetch(cfg.url.trim(), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload)
+    });
+
+    if (res.status === 401) throw new Error('401 Unauthorized，请检查你的API Key或接口权限');
+    if (!res.ok) throw new Error(`接口异常(${res.status})`);
+
+    const data = await res.json();
+    console.log('原始返回（调试用）：', data);
+
+    // 智谱/GLM风格
+    const reply =
+      data.choices?.[0]?.message?.content ||
+      data.choices?.[0]?.content ||
+      data.reply ||
+      data.text ||
+      '（无回复）';
+
+    messages.push({ sender: 'ai', text: reply, image: null });
+  } catch (err) {
+    console.error(err);
+    messages.push({ sender: 'ai', text: `❌ 发送失败：${err.message}` });
   } finally {
-    loading.value = false
-    text.value = ''
-    removeImage()
+    loading.value = false;
+    text.value = '';
+    removeImage();
   }
 }
 </script>
-
 <style scoped>
 .chat-container {
-  --bg-dark: #0d1117;
-  --bg-light: #161b22;
-  --fg-primary: #c9d1d9;
-  --fg-secondary: #8b949e;
-  --accent: #238636;
-  --accent-hover: #2ea043;
+  --bg-dark:     #0d1117;
+  --bg-light:    #161b22;
+  --fg-primary:  #c9d1d9;
+  --fg-secondary:#8b949e;
+  --accent:      #238636;
+  --accent-hover:#2ea043;
+
   font-family: 'Segoe UI', Roboto, sans-serif;
   display: flex;
   flex-direction: column;
   height: 100vh;
   background: var(--bg-dark);
   color: var(--fg-primary);
+  position: relative;
 }
 
 /* Header */
@@ -204,12 +208,19 @@ async function send() {
   align-items: center;
   border-bottom: 1px solid #30363d;
 }
-.header-left { display: flex; align-items: center; gap: 12px; }
-.header-right { display: flex; align-items: center; gap: 12px; }
-
-.title { font-size: 1.3rem; font-weight: 600; margin: 0; }
-
-.model-select, .input-config {
+.header-left,
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.title {
+  font-size: 1.3rem;
+  margin: 0;
+  font-weight: 600;
+}
+.model-select,
+.input-config {
   padding: 6px 12px;
   background: var(--bg-dark);
   border: 1px solid #30363d;
@@ -218,12 +229,12 @@ async function send() {
   font-size: 0.9rem;
 }
 .input-add {
-  width: 100px;
   padding: 6px 10px;
   background: var(--bg-dark);
   border: 1px dashed #30363d;
   border-radius: 8px;
   color: var(--fg-primary);
+  width: 100px;
 }
 .btn-add {
   padding: 6px 10px;
@@ -240,12 +251,23 @@ async function send() {
   padding: 16px;
   overflow-y: auto;
 }
+.chat-body::-webkit-scrollbar {
+  width: 6px;
+}
+.chat-body::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 3px;
+}
 .chat-message {
   display: flex;
   margin-bottom: 14px;
 }
-.chat-message.ai { justify-content: flex-start; }
-.chat-message.user { justify-content: flex-end; }
+.chat-message.ai {
+  justify-content: flex-start;
+}
+.chat-message.user {
+  justify-content: flex-end;
+}
 .avatar {
   width: 32px;
   height: 32px;
@@ -260,16 +282,19 @@ async function send() {
   max-width: 70%;
   padding: 12px 16px;
   border-radius: 20px;
-  position: relative;
   background: var(--bg-light);
+  word-wrap: break-word;
 }
 .chat-message.user .bubble {
   background: var(--accent);
   color: #fff;
 }
-.text { margin: 0; white-space: pre-wrap; }
+.text {
+  margin: 0;
+  white-space: pre-wrap;
+}
 
-/* 精修图片显示 */
+/* 图片预览 */
 .image-preview {
   display: block;
   max-width: 100%;
@@ -278,7 +303,10 @@ async function send() {
   border-radius: 10px;
   border: 1px solid #30363d;
 }
-.typing-indicator { font-style: italic; color: var(--fg-secondary); }
+.typing-indicator {
+  font-style: italic;
+  color: var(--fg-secondary);
+}
 
 /* Footer */
 .chat-footer {
@@ -297,7 +325,10 @@ async function send() {
   border-radius: 8px;
   color: var(--fg-primary);
 }
-.input-text:focus { outline: none; border-color: var(--accent); }
+.input-text:focus {
+  outline: none;
+  border-color: var(--accent);
+}
 
 /* Attach 按钮 */
 .btn-attach {
@@ -313,11 +344,17 @@ async function send() {
   cursor: pointer;
   transition: transform 0.1s, box-shadow 0.2s;
 }
-.attach-icon { font-size: 1.1rem; }
-.attach-text { font-size: 0.9rem; }
-.btn-attach:hover { transform: translateY(-1px); }
+.attach-icon {
+  font-size: 1.1rem;
+}
+.attach-text {
+  font-size: 0.9rem;
+}
+.btn-attach:hover {
+  transform: translateY(-1px);
+}
 
-/* 发送按钮 */
+/* Send 按钮 */
 .btn-send {
   padding: 8px 18px;
   background: var(--accent);
@@ -326,29 +363,42 @@ async function send() {
   border-radius: 10px;
   cursor: pointer;
 }
-.btn-send:disabled { background: #444; cursor: not-allowed; }
+.btn-send:disabled {
+  background: #444;
+  cursor: not-allowed;
+}
 
-/* Preview */
+/* Image Preview Box */
 .preview-container {
   position: absolute;
   bottom: 90px;
   left: 30px;
+}
+.preview-box {
+  position: relative;
 }
 .preview-thumb {
   width: 70px;
   height: 70px;
   object-fit: cover;
   border-radius: 10px;
+  border: 2px solid #30363d;
 }
 .btn-remove {
   position: absolute;
-  top: -6px; right: -6px;
+  top: -6px;
+  right: -6px;
   background: var(--accent);
   color: #fff;
-  border: none;
+ 	border: none;
   border-radius: 50%;
-  width: 22px; height: 22px;
+  width: 22px;
+  height: 22px;
   cursor: pointer;
 }
-.hidden { display: none; }
+
+/* 隐藏元素 */
+.hidden {
+  display: none;
+}
 </style>

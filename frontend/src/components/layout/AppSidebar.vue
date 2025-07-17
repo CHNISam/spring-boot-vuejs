@@ -10,7 +10,7 @@
       <li>
         <!-- 改成 /posts 列表页 -->
         <router-link to="/posts" title="动态" exact>
-          <span class="link-text">Posts</span>
+          <span class="link-text">Moments</span>
         </router-link>
       </li>
       <li>
@@ -20,7 +20,7 @@
       </li>
       <li>
         <router-link to="/editor" title="投稿">
-          <span class="link-text">Editor</span>
+          <span class="link-text">Post</span>
         </router-link>
       </li>
       <!-- 去掉原来的“帖子”项 -->
