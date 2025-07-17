@@ -1,56 +1,54 @@
-import { createStore } from 'vuex'
-import api from '../api/backend-api'
+import { createStore } from 'vuex';
+import api, { axiosApi, User } from '../api/backend-api';
 
-export default createStore({
-    state: {
-        loginSuccess: false,
-        loginError: false,
-        userName: null,
-        userPass: null
+export interface State {
+  credentials: { username: string; password: string } | null;
+  profile: User | null;
+  loginError: boolean;
+}
+
+export default createStore<State>({
+  state: {
+    credentials: null,
+    profile: null,
+    loginError: false
+  },
+  mutations: {
+    setCredentials(state, creds: { username: string; password: string }) {
+      state.credentials = creds;
+      // 让后续所有请求自动带上 Basic Auth
+      axiosApi.defaults.auth = creds;
     },
-    mutations: {
-        login_success(state, payload){
-            state.loginSuccess = true;
-            state.userName = payload.userName;
-            state.userPass = payload.userPass;
-        },
-        login_error(state, payload){
-            state.loginError = true;
-            state.userName = payload.userName;
-        }
+    setProfile(state, profile: User) {
+      state.profile = profile;
     },
-    actions: {
-        login({commit}, {user, password}) {
-            return new Promise((resolve, reject) => {
-                console.log("Accessing backend with user: '" + user);
-                api.getSecured(user, password)
-                    .then(response => {
-                        console.log("Response: '" + response.data + "' with Statuscode " + response.status);
-                        if(response.status == 200) {
-                            console.log("Login successful");
-                            // place the loginSuccess state into our vuex store
-                            commit('login_success', {
-                                userName: user,
-                                userPass: password
-                            });
-                        }
-                        resolve(response)
-                    })
-                    .catch(error => {
-                        console.log("Error: " + error);
-                        // place the loginError state into our vuex store
-                        commit('login_error', {
-                            userName: user
-                        });
-                        reject("Invalid credentials!")
-                    })
-            })
-        }
-    },
-    getters: {
-        isLoggedIn: state => state.loginSuccess,
-        hasLoginErrored: state => state.loginError,
-        getUserName: state => state.userName,
-        getUserPass: state => state.userPass
+    setLoginError(state, err: boolean) {
+      state.loginError = err;
     }
+  },
+  actions: {
+    async login({ commit }, { user, password }) {
+      try {
+        // 1️⃣ 校验凭证
+        await api.getSecured(user, password);
+
+        // 2️⃣ 缓存凭证并挂到 axios
+        commit('setCredentials', { username: user, password });
+
+        // 3️⃣ 拉当前用户信息
+        const { data: me } = await api.getCurrentUser();
+        commit('setProfile', me);
+
+        commit('setLoginError', false);
+        return me;
+      } catch (e) {
+        commit('setLoginError', true);
+        throw e;
+      }
+    }
+  },
+  getters: {
+    isLoggedIn: state => !!state.profile,
+    currentUser: state => state.profile
+  }
 });

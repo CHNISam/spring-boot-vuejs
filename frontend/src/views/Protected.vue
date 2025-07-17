@@ -1,57 +1,74 @@
 <template>
-  <div>
-    <h1><span class="badge bg-success">YEAH you made it!</span></h1>
-    <h5>If you're able to read this, you've successfully logged in and redirected to this protected site :)</h5>
-
-    <button class="btn btn-primary" @click="getSecuredTextFromBackend()">Call the secured API</button>
-    <p></p>
-
-    <div v-if="securedApiCallSuccess">
-      <span class="badge bg-success">API call</span> Full response: {{ backendResponse }} <span class="badge bg-success">successful</span>
+  <div class="profile-page p-4">
+    <!-- 用户信息 -->
+    <div class="user-info mb-6">
+      <h1>Welcome, {{ user.firstName }} {{ user.lastName }}</h1>
+      <p><strong>ID:</strong> {{ user.id }}</p>
     </div>
-    <div v-if="errors">
-      <span class="badge bg-warning">API call</span> {{ errors }} <span class="badge bg-warning">NOT successful</span>
+
+    <!-- 帖子列表 -->
+    <div class="user-posts">
+      <h2>Your Posts</h2>
+      <div v-if="loading" class="text-gray-500">Loading posts…</div>
+      <div v-else-if="posts.length === 0" class="text-gray-500">You haven't posted anything yet.</div>
+      <ul v-else class="space-y-4">
+        <li v-for="post in posts" :key="post.id" class="p-4 border rounded-lg">
+          <h3 class="text-lg font-semibold">{{ post.title }}</h3>
+          <p class="mt-2">{{ post.content }}</p>
+        </li>
+      </ul>
     </div>
   </div>
-
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
-import api from '../api/backend-api'
-import store from '../store'
-import {AxiosError} from "axios";
-
-interface State {
-  backendResponse: string;
-  securedApiCallSuccess: boolean,
-  errors: AxiosError[]
-}
+import { computed, defineComponent, onMounted, ref } from 'vue';
+import { useStore } from 'vuex';
+import api, { Post } from '../api/backend-api';
 
 export default defineComponent({
-  name: 'Protected',
+  name: 'Profile',
+  setup() {
+    const store = useStore();
+    // 从 Vuex 里拿到 profile
+    const user = computed(() => store.getters.currentUser!);
 
-  data: (): State => {
-    return {
-      backendResponse: '',
-      securedApiCallSuccess: false,
-      errors: []
+    const posts = ref<Post[]>([]);
+    const loading = ref(false);
+    const error = ref<string | null>(null);
+
+    // 拉取当前用户的帖子
+    async function loadPosts() {
+      if (!user.value) return;
+      loading.value = true;
+      error.value = null;
+      try {
+        const resp = await api.getPostsByUser(user.value.id);
+        posts.value = resp.data;
+      } catch (e: any) {
+        error.value = e.message || 'Failed to load posts';
+      } finally {
+        loading.value = false;
+      }
     }
-  },
-  methods: {
-    getSecuredTextFromBackend() {
-      api.getSecured(store.getters.getUserName, store.getters.getUserPass)
-          .then(response => {
-            console.log("Response: '" + response.data + "' with Statuscode " + response.status);
-            this.securedApiCallSuccess = true;
-            this.backendResponse = response.data;
-          })
-          .catch((error: AxiosError) => {
-            console.log("Error: " + error);
-            this.errors.push(error);
-          })
-    }
+
+    onMounted(loadPosts);
+
+    return { user, posts, loading, error };
   }
 });
 </script>
 
+<style scoped>
+.profile-page {
+  max-width: 800px;
+  margin: 0 auto;
+}
+.user-info h1 {
+  font-size: 2rem;
+}
+.user-posts h2 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+</style>

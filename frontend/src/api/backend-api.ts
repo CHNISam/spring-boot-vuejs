@@ -1,27 +1,24 @@
-import axios, { AxiosResponse } from 'axios';
+import axios, { AxiosResponse } from "axios";
 
-const axiosApi = axios.create({
+export const axiosApi = axios.create({
   baseURL: `/api`,
   timeout: 1000,
-  headers: { 'Content-Type': 'application/json' }
+  headers: { "Content-Type": "application/json" },
 });
 
-// —— 现有的 User 类型
 export interface User {
   id: number;
   firstName: string;
   lastName: string;
 }
 
-// —— 新增的 Post 类型
 export interface Post {
   id: number;
   title: string;
   content: string;
 }
 
-export default {
-  // —— 现有接口，不动
+const api = {
   hello(): Promise<AxiosResponse<string>> {
     return axiosApi.get(`/hello`);
   },
@@ -30,25 +27,37 @@ export default {
     return axiosApi.get(`/user/${userId}`);
   },
 
-  createUser(firstName: string, lastName: string): Promise<AxiosResponse<number>> {
+  createUser(
+    firstName: string,
+    lastName: string
+  ): Promise<AxiosResponse<number>> {
     return axiosApi.post(`/user/${firstName}/${lastName}`);
   },
 
   getSecured(user: string, password: string): Promise<AxiosResponse<string>> {
     return axiosApi.get(`/secured/`, {
-      auth: { username: user, password: password }
+      auth: { username: user, password },
     });
   },
 
-  // —— 新增：发表帖子
   createPost(title: string, content: string): Promise<AxiosResponse<number>> {
-    // POST /api/posts  body: { title, content }
-    return axiosApi.post<number>('/posts', { title, content });
+    return axiosApi.post<number>("/posts", { title, content });
   },
 
-  // —— 新增：搜索帖子
   searchPosts(q: string): Promise<AxiosResponse<Post[]>> {
-    // GET /api/posts/search?q=xxx
-    return axiosApi.get<Post[]>('/posts/search', { params: { q } });
-  }
-}
+    return axiosApi.get<Post[]>("/posts/search", { params: { q } });
+  },
+
+  // —— 新增：获取当前登录用户信息
+  getCurrentUser(): Promise<AxiosResponse<User>> {
+    return axiosApi.get(`/user/me`);
+  },
+  /**
+   * 获取指定用户的所有帖子
+   */
+  getPostsByUser(userId: number): Promise<AxiosResponse<Post[]>> {
+    return axiosApi.get<Post[]>(`/user/${userId}/posts`);
+  },
+};
+
+export default api;
