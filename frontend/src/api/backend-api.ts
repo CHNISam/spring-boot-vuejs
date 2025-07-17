@@ -73,15 +73,17 @@ const api = {
   },
 
   // —— 新增：AI 智能摘要，改为 POST /api/ai-summary
-  getAISummary(
-    q: string,
-    briefs: { title: string; excerpt: string }[]
-  ): Promise<AxiosResponse<AISummary>> {
-    return axiosApi.post<AISummary>("/ai-summary", {
-      q,
-      posts: briefs,
-    });
-  },
+  // backend-api.ts
+getAISummary(
+  q: string,
+  briefs: { title: string; excerpt: string }[]
+): Promise<AxiosResponse<AISummary>> {
+  return axiosApi.post<AISummary>("/ai-summary", {
+    q,
+    posts: briefs,
+  })
+},
+
 };
 
 export default api;

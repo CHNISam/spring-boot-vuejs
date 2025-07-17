@@ -30,7 +30,7 @@
 
         <div class="card-body">
           <h3 class="post-title">{{ post.title }}</h3>
-          <p class="excerpt">{{ excerpt(post.content) }}</p>
+          <p class="excerpt">{{ post.excerpt }}</p>
           <img v-if="post.thumbnail" class="thumbnail" :src="post.thumbnail" alt="Post thumbnail" />
         </div>
 
@@ -60,6 +60,7 @@ import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 interface FullPost extends APIPost {
+  excerpt: string
   authorName: string
   authorAvatar?: string
   createdAt: string
@@ -76,22 +77,12 @@ const posts = ref<FullPost[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 
-// AI 总结相关
 const summary = ref<string | null>(null)
 const loadingSummary = ref(false)
 
 const avatarStyle = (url?: string) => ({
   background: url ? `url(${url}) center/cover` : 'var(--avatar-bg)'
 })
-
-const goToDetail = (id: number) => {
-  router.push({ name: 'PostDetail', params: { id } })
-}
-
-const excerpt = (text: string) => {
-  const max = 80
-  return text.length > max ? text.slice(0, max) + '…' : text
-}
 
 const relativeTime = (iso: string) => {
   const then = new Date(iso).getTime()
@@ -104,35 +95,42 @@ const relativeTime = (iso: string) => {
   return `${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
 }
 
-async function getAISummary(query: string) {
-  if (!query) return
-  summary.value = null
-  loadingSummary.value = true
-  try {
-    const res = await api.getAISummary(query)
-    summary.value = res.data.summary
-  } catch {
-    summary.value = 'Couldn’t generate AI summary.'
-  } finally {
-    loadingSummary.value = false
-  }
+const makeExcerpt = (text: string) => {
+  const max = 80
+  return text.length > max ? text.slice(0, max) + '…' : text
+}
+
+const goToDetail = (id: number) => {
+  router.push({ name: 'PostDetail', params: { id } })
 }
 
 async function doSearch() {
   loading.value = true
   error.value = null
   try {
+    // 1. 搜索帖子
     const res = await api.searchPosts(q.value)
-    posts.value = res.data.map(p => ({
+    // 2. 构造完整列表
+    const full = res.data.map(p => ({
       ...p,
+      excerpt: makeExcerpt(p.content),
       authorName: 'Anonymous',
       authorAvatar: undefined,
       createdAt: new Date().toISOString(),
       views: 0,
       comments: 0,
-      thumbnail: undefined,
+      thumbnail: undefined
     }))
-    await getAISummary(q.value)
+    posts.value = full
+
+    // 3. 提取摘要简要（briefs）
+    const briefs = full.map(p => ({
+      title: p.title,
+      excerpt: p.excerpt
+    }))
+
+    // 4. 调用 AI 摘要
+    await getAISummary(q.value, briefs)
   } catch (e: any) {
     error.value = e.response?.data?.message || e.message || 'Unknown error'
     posts.value = []
@@ -141,11 +139,28 @@ async function doSearch() {
   }
 }
 
+// 仅保留这一个版本：接收 query + briefs
+async function getAISummary(
+  query: string,
+  briefs: { title: string; excerpt: string }[]
+) {
+  if (!query) return
+  summary.value = null
+  loadingSummary.value = true
+  try {
+    const res = await api.getAISummary(query, briefs)
+    summary.value = res.data.summary
+  } catch {
+    summary.value = 'Couldn’t generate AI summary.'
+  } finally {
+    loadingSummary.value = false
+  }
+}
+
 watch(() => route.query.q, v => {
   q.value = (v as string) || ''
   doSearch()
 })
-
 onMounted(doSearch)
 </script>
 
@@ -176,7 +191,6 @@ onMounted(doSearch)
 .search-header {
   margin-bottom: var(--gap);
 }
-
 .search-title {
   font-size: 1.5rem;
   font-weight: bold;
@@ -190,15 +204,12 @@ onMounted(doSearch)
   padding: var(--gap);
   margin-bottom: var(--gap);
 }
-
 .ai-title {
   margin: 0 0 0.5rem;
   font-size: 1rem;
   color: var(--accent);
 }
-
-.ai-text,
-.ai-loading {
+.ai-text, .ai-loading {
   font-size: 0.9rem;
   color: var(--text-main);
 }
@@ -208,18 +219,12 @@ onMounted(doSearch)
   margin: 2rem 0;
   color: var(--text-main);
 }
-
-.status.error {
-  color: #ff6b6b;
-}
-
-.status.empty {
-  color: var(--text-muted);
-}
+.status.error { color: #ff6b6b; }
+.status.empty { color: var(--text-muted); }
 
 .cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px,1fr));
   gap: var(--gap);
 }
 
@@ -233,10 +238,9 @@ onMounted(doSearch)
   cursor: pointer;
   transition: transform .2s ease, box-shadow .2s ease;
 }
-
 .card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
 }
 
 .card-header {
@@ -244,24 +248,20 @@ onMounted(doSearch)
   align-items: center;
   padding: 0.75rem var(--gap);
 }
-
 .avatar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   flex-shrink: 0;
 }
-
 .meta {
   margin-left: 0.75rem;
 }
-
 .author {
   font-size: 0.9rem;
   font-weight: 500;
   color: var(--text-title);
 }
-
 .time {
   font-size: 0.75rem;
   color: var(--text-muted);
@@ -272,33 +272,30 @@ onMounted(doSearch)
   padding: 0 var(--gap);
   flex: 1;
 }
-
 .post-title {
   font-size: 1.1rem;
   font-weight: 600;
   color: var(--text-title);
   margin: 0.5rem 0;
 }
-
 .excerpt {
   font-size: 0.85rem;
   line-height: 1.4;
   color: var(--text-main);
   display: -webkit-box;
   /* Safari/WebKit */
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+display: -webkit-box;
+-webkit-box-orient: vertical;
+-webkit-line-clamp: 2;
 
-  /* 标准属性 */
-  display: box;
-  box-orient: vertical;
-  line-clamp: 2;
+/* 标准属性 */
+display: box;
+box-orient: vertical;
+line-clamp: 2;
 
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
 .thumbnail {
   width: 100%;
   margin-top: 0.5rem;
@@ -314,7 +311,6 @@ onMounted(doSearch)
   background: var(--card-bg);
   border-top: 1px solid var(--border);
 }
-
 .foot-item {
   display: flex;
   align-items: center;
@@ -326,11 +322,9 @@ onMounted(doSearch)
   cursor: pointer;
   transition: color .2s;
 }
-
 .foot-item:hover {
   color: var(--accent);
 }
-
 .icon {
   width: 18px;
   height: 18px;
