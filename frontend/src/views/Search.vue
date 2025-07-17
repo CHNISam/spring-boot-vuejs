@@ -5,16 +5,18 @@
     </header>
 
     <!-- AI 智能摘要 -->
-    <section v-if="posts.length" class="ai-summary">
-      <h3 class="ai-title">🔍 AI Insight</h3>
-      <p v-if="loadingSummary" class="ai-loading">Analyzing your query…</p>
-      <p v-else-if="summary" class="ai-text">{{ summary }}</p>
-      <p v-else class="ai-retry">
-        <button @click="regenerateSummary" class="retry-btn">
-          🔁 重试生成 AI 总结
-        </button>
-      </p>
-    </section>
+    <transition name="fade">
+      <section v-if="posts.length" class="ai-summary">
+        <h3 class="ai-title">🔍 AI Insight</h3>
+        <p v-if="loadingSummary" class="ai-loading">Analyzing your query…</p>
+        <p v-else-if="summary" class="ai-text">{{ summary }}</p>
+        <p v-else class="ai-retry">
+          <button @click="regenerateSummary" class="retry-btn">
+            🔁 重试生成 AI 总结
+          </button>
+        </p>
+      </section>
+    </transition>
 
     <!-- 加载骨架屏 -->
     <div v-if="loading" class="cards-grid">
@@ -27,12 +29,7 @@
 
     <!-- 正常内容 -->
     <div v-else class="cards-grid">
-      <article
-        v-for="post in posts"
-        :key="post.id"
-        class="card"
-        @click="goToDetail(post.id)"
-      >
+      <article v-for="post in posts" :key="post.id" class="card" @click="goToDetail(post.id)">
         <div class="card-header">
           <div class="avatar" :style="avatarStyle(post.authorAvatar)"></div>
           <div class="meta">
@@ -44,12 +41,7 @@
         <div class="card-body">
           <h3 class="post-title" v-html="highlightText(post.title)"></h3>
           <p class="excerpt" v-html="highlightText(post.excerpt)"></p>
-          <img
-            v-if="post.thumbnail"
-            class="thumbnail"
-            :src="post.thumbnail"
-            alt="Post thumbnail"
-          />
+          <img v-if="post.thumbnail" class="thumbnail" :src="post.thumbnail" alt="Post thumbnail" />
         </div>
 
         <div class="card-footer">
@@ -380,6 +372,13 @@ onMounted(doSearch)
   stroke: currentColor;
   fill: none;
 }
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+
 </style>
 <style>
 .highlight {
