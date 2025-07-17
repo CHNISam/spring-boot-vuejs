@@ -1,8 +1,13 @@
 import axios, { AxiosResponse } from "axios";
 
+// AI Summary 接口返回类型
+export interface AISummary {
+  summary: string;
+}
+
 export const axiosApi = axios.create({
   baseURL: `/api`,
-  timeout: 1000,
+  timeout: 5000,
   headers: { "Content-Type": "application/json" },
 });
 
@@ -52,17 +57,30 @@ const api = {
   getCurrentUser(): Promise<AxiosResponse<User>> {
     return axiosApi.get(`/user/me`);
   },
+
   /**
    * 获取指定用户的所有帖子
    */
   getPostsByUser(userId: number): Promise<AxiosResponse<Post[]>> {
     return axiosApi.get<Post[]>(`/user/${userId}/posts`);
   },
+
   /**
    * 获取所有帖子列表
    */
   getAllPosts(): Promise<AxiosResponse<Post[]>> {
     return axiosApi.get<Post[]>(`/posts`);
+  },
+
+  // —— 新增：AI 智能摘要，改为 POST /api/ai-summary
+  getAISummary(
+    q: string,
+    briefs: { title: string; excerpt: string }[]
+  ): Promise<AxiosResponse<AISummary>> {
+    return axiosApi.post<AISummary>("/ai-summary", {
+      q,
+      posts: briefs,
+    });
   },
 };
 
