@@ -2,10 +2,20 @@
   <div class="post-list">
     <h2 class="title">Post List</h2>
 
-    <div v-if="loading" class="status">Loading…</div>
-    <div v-else-if="error" class="status error">Error loading: {{ error }}</div>
-    <div v-else-if="posts.length === 0" class="status">No posts yet.</div>
+    <!-- 加载时显示骨架屏 -->
+    <div v-if="loading" class="cards">
+      <SkeletonCard v-for="n in 6" :key="n" />
+    </div>
 
+    <!-- 错误 / 空状态 -->
+    <div v-else-if="error" class="status error">
+      Error loading: {{ error }}
+    </div>
+    <div v-else-if="posts.length === 0" class="status">
+      No posts yet.
+    </div>
+
+    <!-- 正常内容 -->
     <div v-else class="cards">
       <div
         v-for="post in posts"
@@ -46,6 +56,7 @@
 </template>
 
 <script lang="ts" setup>
+import SkeletonCard from '@/components/common/SkeletonCard.vue'
 import axios from 'axios'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -65,30 +76,23 @@ interface Post {
 const router = useRouter()
 const posts = ref<Post[]>([])
 const loading = ref(true)
-const error = ref<string|null>(null)
+const error = ref<string | null>(null)
 
-const avatarStyle = (url?: string): Record<string,string> => ({
+const avatarStyle = (url?: string) => ({
   background: url ? `url(${url}) center/cover` : '#444'
 })
-
-const goToDetail = (id: number) => {
+const goToDetail = (id: number) =>
   router.push({ name: 'PostDetail', params: { id } })
-}
-
-const excerpt = (text: string): string => {
-  const max = 100
-  return text.length > max ? text.slice(0, max) + '…' : text
-}
-
-const relativeTime = (iso: string): string => {
-  const then = new Date(iso).getTime()
-  const diff = Date.now() - then
-  const m = 60*1000, h = 60*m, d = 24*h
-  if (diff < m)  return 'just now'
-  if (diff < h)  return `${Math.floor(diff/m)} minutes ago`
-  if (diff < d)  return `${Math.floor(diff/h)} hours ago`
+const excerpt = (text: string) =>
+  text.length > 100 ? text.slice(0, 100) + '…' : text
+const relativeTime = (iso: string) => {
+  const diff = Date.now() - new Date(iso).getTime()
+  const m = 60_000, h = 3_600_000, d = 86_400_000
+  if (diff < m) return 'just now'
+  if (diff < h) return `${Math.floor(diff / m)} minutes ago`
+  if (diff < d) return `${Math.floor(diff / h)} hours ago`
   const dt = new Date(iso)
-  return `${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`
+  return `${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
 }
 
 async function fetchPosts() {

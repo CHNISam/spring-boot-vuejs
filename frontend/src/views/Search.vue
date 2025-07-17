@@ -1,11 +1,10 @@
 <template>
   <div class="search-container">
-    <!-- 搜索标题 -->
     <header class="search-header">
       <h2 class="search-title">Search Results</h2>
     </header>
 
-    <!-- AI 智能总结（自动 + 手动可控 + 缓存 + 节流） -->
+    <!-- AI 智能摘要 -->
     <section v-if="posts.length" class="ai-summary">
       <h3 class="ai-title">🔍 AI Insight</h3>
       <p v-if="loadingSummary" class="ai-loading">Analyzing your query…</p>
@@ -17,14 +16,23 @@
       </p>
     </section>
 
-    <!-- 状态提示 -->
-    <div v-if="loading" class="status loading">Loading…</div>
+    <!-- 加载骨架屏 -->
+    <div v-if="loading" class="cards-grid">
+      <SkeletonCard v-for="n in 6" :key="n" />
+    </div>
     <div v-else-if="error" class="status error">Error: {{ error }}</div>
-    <div v-else-if="!loading && posts.length === 0" class="status empty">No results found.</div>
+    <div v-else-if="!loading && posts.length === 0" class="status empty">
+      No results found.
+    </div>
 
-    <!-- 结果卡片区 -->
+    <!-- 正常内容 -->
     <div v-else class="cards-grid">
-      <article v-for="post in posts" :key="post.id" class="card" @click="goToDetail(post.id)">
+      <article
+        v-for="post in posts"
+        :key="post.id"
+        class="card"
+        @click="goToDetail(post.id)"
+      >
         <div class="card-header">
           <div class="avatar" :style="avatarStyle(post.authorAvatar)"></div>
           <div class="meta">
@@ -36,7 +44,12 @@
         <div class="card-body">
           <h3 class="post-title" v-html="highlightText(post.title)"></h3>
           <p class="excerpt" v-html="highlightText(post.excerpt)"></p>
-          <img v-if="post.thumbnail" class="thumbnail" :src="post.thumbnail" alt="Post thumbnail" />
+          <img
+            v-if="post.thumbnail"
+            class="thumbnail"
+            :src="post.thumbnail"
+            alt="Post thumbnail"
+          />
         </div>
 
         <div class="card-footer">
@@ -61,6 +74,7 @@
 
 <script lang="ts" setup>
 import api, { Post as APIPost } from '@/api/backend-api'
+import SkeletonCard from '@/components/common/SkeletonCard.vue'
 import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -81,65 +95,41 @@ const q = ref<string>((route.query.q as string) || '')
 const posts = ref<FullPost[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
-
-// AI Summary 状态
 const summary = ref<string | null>(null)
 const loadingSummary = ref(false)
-// 缓存和节流
 const summaryCache = new Map<string, string>()
 let summaryTimer: ReturnType<typeof setTimeout> | null = null
 
 const avatarStyle = (url?: string) => ({
-  background: url ? `url(${url}) center/cover` : 'var(--avatar-bg)',
+  background: url ? `url(${url}) center/cover` : 'var(--avatar-bg)'
 })
-
-// 时间展示
 const relativeTime = (iso: string) => {
-  const then = new Date(iso).getTime()
-  const diff = Date.now() - then
+  const diff = Date.now() - new Date(iso).getTime()
   const m = 60e3, h = 60 * m, d = 24 * h
   if (diff < m) return 'just now'
   if (diff < h) return `${Math.floor(diff / m)}m ago`
   if (diff < d) return `${Math.floor(diff / h)}h ago`
   const dt = new Date(iso)
-  return `${String(dt.getMonth() + 1).padStart(2, '0')}-${String(
-    dt.getDate()
-  ).padStart(2, '0')}`
+  return `${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
 }
-
-// 摘要生成
-const makeExcerpt = (text: string) => {
-  const max = 80
-  return text.length > max ? text.slice(0, max) + '…' : text
-}
-
-// 页面跳转
-const goToDetail = (id: number) => {
+const makeExcerpt = (text: string) =>
+  text.length > 80 ? text.slice(0, 80) + '…' : text
+const goToDetail = (id: number) =>
   router.push({ name: 'PostDetail', params: { id } })
-}
-
-// 转义正则特殊字符
 const escapeRegExp = (str: string) =>
   str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-
-// 文本高亮
 function highlightText(text: string): string {
   if (!q.value) return text
   const re = new RegExp(`(${escapeRegExp(q.value)})`, 'gi')
   return text.replace(re, `<span class="highlight">$1</span>`)
 }
-
-// 调度 AI Summary：缓存 + 节流
 function scheduleAISummary(query: string, briefs: { title: string; excerpt: string }[]) {
   if (!query || briefs.length === 0) return
-  // 有缓存直接用
   if (summaryCache.has(query)) {
     summary.value = summaryCache.get(query)!
     return
   }
-  // 清除旧定时
   if (summaryTimer) clearTimeout(summaryTimer)
-
   loadingSummary.value = true
   summaryTimer = setTimeout(async () => {
     try {
@@ -151,24 +141,16 @@ function scheduleAISummary(query: string, briefs: { title: string; excerpt: stri
     } finally {
       loadingSummary.value = false
     }
-  }, 1000) // 1s 防抖
+  }, 1000)
 }
-
-// 手动重试
 function regenerateSummary() {
-  const briefs = posts.value.map(p => ({
-    title: p.title,
-    excerpt: p.excerpt,
-  }))
+  const briefs = posts.value.map(p => ({ title: p.title, excerpt: p.excerpt }))
   scheduleAISummary(q.value, briefs)
 }
-
-// 执行搜索及触发 AI 摘要
 async function doSearch() {
   loading.value = true
   error.value = null
   summary.value = null
-
   try {
     const res = await api.searchPosts(q.value)
     const full = res.data.map(p => ({
@@ -182,12 +164,7 @@ async function doSearch() {
       thumbnail: undefined,
     }))
     posts.value = full
-
-    const briefs = full.map(p => ({
-      title: p.title,
-      excerpt: p.excerpt,
-    }))
-    scheduleAISummary(q.value, briefs)
+    scheduleAISummary(q.value, full.map(p => ({ title: p.title, excerpt: p.excerpt })))
   } catch (e: any) {
     error.value = e.response?.data?.message || e.message || 'Unknown error'
     posts.value = []
@@ -196,13 +173,15 @@ async function doSearch() {
   }
 }
 
-// 监听路由参数变动
-watch(() => route.query.q, v => {
-  q.value = (v as string) || ''
-  doSearch()
-})
+watch(() => route.query.q, () => doSearch())
 onMounted(doSearch)
 </script>
+
+<style>
+.highlight {
+  color: var(--accent);
+}
+</style>
 
 <style scoped>
 :root {
