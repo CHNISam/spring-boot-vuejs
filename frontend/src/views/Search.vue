@@ -5,26 +5,26 @@
       <h2 class="search-title">Search Results</h2>
     </header>
 
-    <!-- AI 智能总结（可选） -->
-    <section v-if="summary || loadingSummary" class="ai-summary">
+    <!-- AI 智能总结（自动 + 手动可控 + 缓存 + 节流） -->
+    <section v-if="posts.length" class="ai-summary">
       <h3 class="ai-title">🔍 AI Insight</h3>
-      <p v-if="summary" class="ai-text">{{ summary }}</p>
-      <p v-else class="ai-loading">Analyzing your query…</p>
+      <p v-if="loadingSummary" class="ai-loading">Analyzing your query…</p>
+      <p v-else-if="summary" class="ai-text">{{ summary }}</p>
+      <p v-else class="ai-retry">
+        <button @click="regenerateSummary" class="retry-btn">
+          🔁 重试生成 AI 总结
+        </button>
+      </p>
     </section>
 
     <!-- 状态提示 -->
     <div v-if="loading" class="status loading">Loading…</div>
     <div v-else-if="error" class="status error">Error: {{ error }}</div>
-    <div v-else-if="posts.length === 0" class="status empty">No results found.</div>
+    <div v-else-if="!loading && posts.length === 0" class="status empty">No results found.</div>
 
     <!-- 结果卡片区 -->
     <div v-else class="cards-grid">
-      <article
-        v-for="post in posts"
-        :key="post.id"
-        class="card"
-        @click="goToDetail(post.id)"
-      >
+      <article v-for="post in posts" :key="post.id" class="card" @click="goToDetail(post.id)">
         <div class="card-header">
           <div class="avatar" :style="avatarStyle(post.authorAvatar)"></div>
           <div class="meta">
@@ -36,31 +36,18 @@
         <div class="card-body">
           <h3 class="post-title" v-html="highlightText(post.title)"></h3>
           <p class="excerpt" v-html="highlightText(post.excerpt)"></p>
-          <img
-            v-if="post.thumbnail"
-            class="thumbnail"
-            :src="post.thumbnail"
-            alt="Post thumbnail"
-          />
+          <img v-if="post.thumbnail" class="thumbnail" :src="post.thumbnail" alt="Post thumbnail" />
         </div>
 
         <div class="card-footer">
-          <button
-            class="foot-item"
-            @click.stop="goToDetail(post.id)"
-            aria-label="Views"
-          >
+          <button class="foot-item" @click.stop="goToDetail(post.id)" aria-label="Views">
             <svg class="icon" viewBox="0 0 24 24">
               <path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7z" />
               <circle cx="12" cy="12" r="3" />
             </svg>
             <span>{{ post.views }}</span>
           </button>
-          <button
-            class="foot-item"
-            @click.stop="goToDetail(post.id)"
-            aria-label="Comments"
-          >
+          <button class="foot-item" @click.stop="goToDetail(post.id)" aria-label="Comments">
             <svg class="icon" viewBox="0 0 24 24">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z" />
             </svg>
@@ -95,8 +82,12 @@ const posts = ref<FullPost[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 
+// AI Summary 状态
 const summary = ref<string | null>(null)
 const loadingSummary = ref(false)
+// 缓存和节流
+const summaryCache = new Map<string, string>()
+let summaryTimer: ReturnType<typeof setTimeout> | null = null
 
 const avatarStyle = (url?: string) => ({
   background: url ? `url(${url}) center/cover` : 'var(--avatar-bg)',
@@ -138,16 +129,48 @@ function highlightText(text: string): string {
   return text.replace(re, `<span class="highlight">$1</span>`)
 }
 
-// 执行搜索及 AI 摘要
+// 调度 AI Summary：缓存 + 节流
+function scheduleAISummary(query: string, briefs: { title: string; excerpt: string }[]) {
+  if (!query || briefs.length === 0) return
+  // 有缓存直接用
+  if (summaryCache.has(query)) {
+    summary.value = summaryCache.get(query)!
+    return
+  }
+  // 清除旧定时
+  if (summaryTimer) clearTimeout(summaryTimer)
+
+  loadingSummary.value = true
+  summaryTimer = setTimeout(async () => {
+    try {
+      const res = await api.getAISummary(query, briefs)
+      summary.value = res.data.summary
+      summaryCache.set(query, res.data.summary)
+    } catch {
+      summary.value = null
+    } finally {
+      loadingSummary.value = false
+    }
+  }, 1000) // 1s 防抖
+}
+
+// 手动重试
+function regenerateSummary() {
+  const briefs = posts.value.map(p => ({
+    title: p.title,
+    excerpt: p.excerpt,
+  }))
+  scheduleAISummary(q.value, briefs)
+}
+
+// 执行搜索及触发 AI 摘要
 async function doSearch() {
   loading.value = true
   error.value = null
+  summary.value = null
 
   try {
-    // 1. 搜索帖子
     const res = await api.searchPosts(q.value)
-
-    // 2. 构造完整列表
     const full = res.data.map(p => ({
       ...p,
       excerpt: makeExcerpt(p.content),
@@ -160,36 +183,16 @@ async function doSearch() {
     }))
     posts.value = full
 
-    // 3. 构造 briefs
     const briefs = full.map(p => ({
       title: p.title,
       excerpt: p.excerpt,
     }))
-
-    // 4. 调用 AI 摘要
-    await getAISummary(q.value, briefs)
+    scheduleAISummary(q.value, briefs)
   } catch (e: any) {
     error.value = e.response?.data?.message || e.message || 'Unknown error'
     posts.value = []
   } finally {
     loading.value = false
-  }
-}
-
-async function getAISummary(
-  query: string,
-  briefs: { title: string; excerpt: string }[]
-) {
-  if (!query) return
-  summary.value = null
-  loadingSummary.value = true
-  try {
-    const res = await api.getAISummary(query, briefs)
-    summary.value = res.data.summary
-  } catch {
-    summary.value = 'Couldn’t generate AI summary.'
-  } finally {
-    loadingSummary.value = false
   }
 }
 
@@ -227,6 +230,7 @@ onMounted(doSearch)
 .search-header {
   margin-bottom: var(--gap);
 }
+
 .search-title {
   font-size: 1.5rem;
   font-weight: bold;
@@ -240,15 +244,35 @@ onMounted(doSearch)
   padding: var(--gap);
   margin-bottom: var(--gap);
 }
+
 .ai-title {
   margin: 0 0 0.5rem;
   font-size: 1rem;
   color: var(--accent);
 }
+
 .ai-text,
 .ai-loading {
   font-size: 0.9rem;
   color: var(--text-main);
+}
+
+.ai-retry {
+  text-align: right;
+}
+
+.retry-btn {
+  padding: 0.3rem 0.8rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.retry-btn:hover {
+  opacity: 0.9;
 }
 
 .status {
@@ -256,9 +280,11 @@ onMounted(doSearch)
   margin: 2rem 0;
   color: var(--text-main);
 }
+
 .status.error {
   color: #ff6b6b;
 }
+
 .status.empty {
   color: var(--text-muted);
 }
@@ -279,6 +305,7 @@ onMounted(doSearch)
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
+
 .card:hover {
   transform: translateY(-4px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
@@ -289,20 +316,24 @@ onMounted(doSearch)
   align-items: center;
   padding: 0.75rem var(--gap);
 }
+
 .avatar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   flex-shrink: 0;
 }
+
 .meta {
   margin-left: 0.75rem;
 }
+
 .author {
   font-size: 0.9rem;
   font-weight: 500;
   color: var(--text-title);
 }
+
 .time {
   font-size: 0.75rem;
   color: var(--text-muted);
@@ -313,12 +344,14 @@ onMounted(doSearch)
   padding: 0 var(--gap);
   flex: 1;
 }
+
 .post-title {
   font-size: 1.1rem;
   font-weight: 600;
   color: var(--text-title);
   margin: 0.5rem 0;
 }
+
 .excerpt {
   font-size: 0.85rem;
   line-height: 1.4;
@@ -328,6 +361,7 @@ onMounted(doSearch)
   -webkit-line-clamp: 2;
   overflow: hidden;
 }
+
 .thumbnail {
   width: 100%;
   margin-top: 0.5rem;
@@ -343,6 +377,7 @@ onMounted(doSearch)
   background: var(--card-bg);
   border-top: 1px solid var(--border);
 }
+
 .foot-item {
   display: flex;
   align-items: center;
@@ -354,9 +389,11 @@ onMounted(doSearch)
   cursor: pointer;
   transition: color 0.2s;
 }
+
 .foot-item:hover {
   color: var(--accent);
 }
+
 .icon {
   width: 18px;
   height: 18px;
@@ -364,7 +401,6 @@ onMounted(doSearch)
   stroke: currentColor;
   fill: none;
 }
-
 </style>
 <style>
 .highlight {

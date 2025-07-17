@@ -53,7 +53,7 @@ const api = {
     return axiosApi.get<Post[]>("/posts/search", { params: { q } });
   },
 
-  // —— 新增：获取当前登录用户信息
+  // 获取当前登录用户信息
   getCurrentUser(): Promise<AxiosResponse<User>> {
     return axiosApi.get(`/user/me`);
   },
@@ -72,18 +72,16 @@ const api = {
     return axiosApi.get<Post[]>(`/posts`);
   },
 
-  // —— 新增：AI 智能摘要，改为 POST /api/ai-summary
-  // backend-api.ts
-getAISummary(
-  q: string,
-  briefs: { title: string; excerpt: string }[]
-): Promise<AxiosResponse<AISummary>> {
-  return axiosApi.post<AISummary>("/ai-summary", {
-    q,
-    posts: briefs,
-  })
-},
-
+  // AI 智能摘要
+  getAISummary(
+    q: string,
+    briefs: { title: string; excerpt: string }[]
+  ): Promise<AxiosResponse<AISummary>> {
+    return axiosApi.post<AISummary>("/ai-summary", {
+      q,
+      posts: briefs,
+    });
+  },
 };
 
 export default api;
