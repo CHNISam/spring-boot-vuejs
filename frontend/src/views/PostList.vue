@@ -41,11 +41,11 @@
         </div>
 
         <div class="card-footer">
-          <button class="foot-item views" @click.stop="goToDetail(post.id)">
+          <button class="foot-item views" @click.stop="goToDetail(post.id)" aria-label="Views">
             <svg class="icon" viewBox="0 0 24 24"><path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
             <span>{{ post.views }}</span>
           </button>
-          <button class="foot-item comments" @click.stop="goToDetail(post.id)">
+          <button class="foot-item comments" @click.stop="goToDetail(post.id)" aria-label="Comments">
             <svg class="icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/></svg>
             <span>{{ post.comments }}</span>
           </button>
@@ -79,20 +79,20 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 
 const avatarStyle = (url?: string) => ({
-  background: url ? `url(${url}) center/cover` : '#444'
+  background: url ? `url(${url}) center/cover` : '#666'
 })
 const goToDetail = (id: number) =>
   router.push({ name: 'PostDetail', params: { id } })
 const excerpt = (text: string) =>
-  text.length > 100 ? text.slice(0, 100) + '…' : text
+  text.length > 80 ? text.slice(0, 80) + '…' : text
 const relativeTime = (iso: string) => {
   const diff = Date.now() - new Date(iso).getTime()
   const m = 60_000, h = 3_600_000, d = 86_400_000
   if (diff < m) return 'just now'
-  if (diff < h) return `${Math.floor(diff / m)} minutes ago`
-  if (diff < d) return `${Math.floor(diff / h)} hours ago`
+  if (diff < h) return `${Math.floor(diff / m)}m ago`
+  if (diff < d) return `${Math.floor(diff / h)}h ago`
   const dt = new Date(iso)
-  return `${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+  return `${String(dt.getMonth() + 1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`
 }
 
 async function fetchPosts() {
@@ -124,125 +124,122 @@ onMounted(fetchPosts)
   color: var(--text-main);
   min-height: 100vh;
 }
-
 .title {
-  font-size: 1.125rem;
-  font-weight: 600;
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
   color: var(--text-title);
-  margin-bottom: 16px;
 }
-
-.status {
-  text-align: center;
-  margin: 40px 0;
-  color: var(--text-main);
-}
-.status.error {
-  color: var(--error);
-}
-
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px,1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
 }
-
 .card {
+  display: flex;
+  flex-direction: column;
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  display: flex;
-  flex-direction: column;
+  overflow: hidden;
   cursor: pointer;
-  transition: transform .2s, box-shadow .2s;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
-
 .card-header {
   display: flex;
   align-items: center;
-  padding: 10px;
+  padding: 0.75rem 1rem;
 }
 .avatar {
   width: 36px;
   height: 36px;
   border-radius: 50%;
+  background: var(--border);
 }
 .meta {
-  margin-left: 10px;
-  display: flex;
-  flex-direction: column;
+  margin-left: 0.75rem;
 }
 .author {
-  font-size: 0.85rem;
-  font-weight: 500;
+  font-size: 0.875rem;
+  font-weight: 600;
   color: var(--text-title);
 }
 .time {
   font-size: 0.75rem;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 0.25rem;
 }
-
 .card-body {
-  padding: 0 10px 10px;
   flex: 1;
+  padding: 0 1rem;
 }
 .post-title {
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 600;
+  margin: 0.5rem 0;
+  line-height: 1.2;
   color: var(--text-title);
-  margin: 0 0 6px;
 }
 .excerpt {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   line-height: 1.4;
   color: var(--text-main);
-
   display: -webkit-box;
-  -webkit-line-clamp: 1;      /* clamp to 1 line */
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
-/* only show thumbnail when available */
 .thumb-wrapper {
-  height: auto;
+  position: relative;
+  width: 100%;
+  padding-top: 75%; /* 4:3 Aspect Ratio */
+  overflow: hidden;
 }
 .thumb {
+  position: absolute;
+  top: 0; left: 0;
   width: 100%;
-  height: 140px;
+  height: 100%;
   object-fit: cover;
 }
-
 .card-footer {
   display: flex;
   align-items: center;
-  padding: 6px 10px;
+  padding: 0.5rem 1rem;
+  background: var(--card-bg);
   border-top: 1px solid var(--border);
 }
 .foot-item {
   display: flex;
   align-items: center;
-  margin-right: 12px;
-  font-size: 0.8rem;
+  margin-right: 1rem;
+  font-size: 0.85rem;
   color: var(--text-muted);
   background: none;
   border: none;
   cursor: pointer;
-  transition: color .2s;
+  transition: color 0.2s;
 }
 .foot-item:hover {
   color: var(--accent);
 }
 .icon {
-  width: 16px;
-  height: 16px;
-  margin-right: 3px;
+  width: 18px;
+  height: 18px;
+  margin-right: 0.25rem;
   stroke: currentColor;
   fill: none;
+}
+.status {
+  text-align: center;
+  margin: 2rem 0;
+  color: var(--text-main);
+}
+.status.error {
+  color: var(--error);
 }
 </style>
