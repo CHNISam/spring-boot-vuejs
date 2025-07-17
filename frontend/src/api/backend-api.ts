@@ -58,6 +58,12 @@ const api = {
   getPostsByUser(userId: number): Promise<AxiosResponse<Post[]>> {
     return axiosApi.get<Post[]>(`/user/${userId}/posts`);
   },
+  /**
+   * 获取所有帖子列表
+   */
+  getAllPosts(): Promise<AxiosResponse<Post[]>> {
+    return axiosApi.get<Post[]>(`/posts`);
+  },
 };
 
 export default api;

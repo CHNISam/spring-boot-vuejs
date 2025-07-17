@@ -1,28 +1,35 @@
+<!-- src/components/HelloSpringWorld.vue -->
 <template>
   <div class="hello">
     <h1>{{ hellomsg }}</h1>
-    <h2>See the sources here: </h2>
+
+    <h2>查看源码：</h2>
     <ul>
-      <li><a href="https://github.com/jonashackt/spring-boot-vuejs" target="_blank">github.com/jonashackt/spring-boot-vuejs</a></li>
+      <li>
+        <a href="https://github.com/CHNISam/spring-boot-vuejs" target="_blank">
+          github.com/CHNISam/spring-boot-vuejs
+        </a>
+      </li>
     </ul>
-    <h3>This site contains more stuff :)</h3>
+
+    <h3>功能演示：</h3>
     <ul>
-        <li>HowTo call REST-Services:</li>
-        <li><router-link to="/callservice">/callservice</router-link></li>
-        <li>HowTo to play around with Bootstrap UI components:</li>
-        <li><router-link to="/bootstrap">/bootstrap</router-link></li>
-        <li>HowTo to interact with the Spring Boot database backend:</li>
-        <li><router-link to="/user">/user</router-link></li>
-        <li>Login to the secured part of the application</li>
-        <li><router-link to="/login">/login</router-link></li>
-        <li>A secured part of this application:</li>
-        <li><router-link to="/protected">/protected</router-link></li>
+      <!-- 保留“登录到受保护部分” -->
+      <li>登录到受保护部分：<router-link to="/login">/login</router-link></li>
+      <!-- 新增动态列表 -->
+      <li>查看动态列表：<router-link to="/posts">/posts</router-link></li>
+      <!-- 新增发表新帖（投稿） -->
+      <li>发表新帖（投稿）：<router-link to="/editor">/editor</router-link></li>
+      <!-- 新增搜索功能 -->
+      <li>帖子搜索：<router-link to="/search">/search</router-link></li>
+      <!-- 保留示例受保护页面 -->
+      <li>受保护页面示例：<router-link to="/protected">/protected</router-link></li>
     </ul>
   </div>
 </template>
 
-<script>
-// 正确导入api模块
+<script lang="ts">
+// 正确导入 api 模块
 import api from '../api/backend-api';
 
 export default {
@@ -30,38 +37,36 @@ export default {
   props: {
     hellomsg: {
       type: String,
-      required: true 
-    }
+      required: true,
+    },
   },
   mounted() {
     const store = this.$store;
     const isLoggedIn = store.getters.isLoggedIn;
     const currentUser = store.getters.currentUser;
-    const credentials = store.state.credentials;
-    
-    if(isLoggedIn) {
-      console.log("✅ 用户已登录 - 用户信息:", currentUser);
-      console.log("🆔 用户ID:", currentUser ? currentUser.id : "无");
-      console.log("🔐 凭证状态:", credentials !== null ? "已设置" : "未设置");
-      
-      // 修复API访问错误 - 使用直接导入的api，而不是this.$api
-      console.log("🌐 尝试访问 /api/user/me...");
+    const credentials = (store.state as any).credentials;
+
+
+    if (isLoggedIn) {
+      console.log('✅ 用户已登录 - 用户信息:', currentUser);
+      console.log('🆔 用户ID:', currentUser ? currentUser.id : '无');
+      console.log('🔐 凭证状态:', credentials !== null ? '已设置' : '未设置');
+      console.log('🌐 尝试访问 /api/user/me...');
       api.getCurrentUser()
         .then(response => {
-          console.log("🔄 /api/user/me 响应:", response.data);
+          console.log('🔄 /api/user/me 响应:', response.data);
         })
         .catch(error => {
-          console.error("❌ /api/user/me 请求失败:", error.message);
+          console.error('❌ /api/user/me 请求失败:', error.message);
         });
     } else {
-      console.log("🔒 用户未登录");
-      console.log("ℹ️ 访问 /login 进行登录");
+      console.log('🔒 用户未登录');
+      console.log('ℹ️ 访问 /login 进行登录');
     }
-  }
-}
+  },
+};
 </script>
 
-<!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped lang="scss">
 h1, h2 {
   font-weight: normal;
@@ -73,8 +78,7 @@ ul {
 }
 
 li {
-  display: inline-block;
-  margin: 0 10px;
+  margin: 8px 0;
 }
 
 a {

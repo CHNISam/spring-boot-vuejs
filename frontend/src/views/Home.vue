@@ -1,13 +1,15 @@
+<!-- src/views/Home.vue -->
 <template>
   <div class="home">
     <img alt="Vue with Spring logo" src="../assets/spring-boot-vuejs-logo.png">
-    <HelloSpringWorld hellomsg="Welcome to your Vue.js (+ TypeScript) powered Spring Boot App"/>
+    <!-- 改成你的项目介绍文案 -->
+    <HelloSpringWorld hellomsg="欢迎来到基于大模型和 SpringBoot 的社交论坛系统" />
   </div>
 </template>
 
 <script lang="ts">
+import HelloSpringWorld from '@/components/HelloSpringWorld.vue';
 import { defineComponent } from 'vue';
-import HelloSpringWorld from '@/components/HelloSpringWorld.vue'; // @ is an alias to /src
 
 export default defineComponent({
   name: 'Home',
