@@ -28,8 +28,6 @@
         :key="idx"
         :class="['chat-message', msg.sender]"
       >
-        <!-- User Avatar -->
-        <div v-if="msg.sender === 'user'" class="avatar">👤</div>
         <!-- AI Avatar -->
         <div v-if="msg.sender === 'ai'" class="avatar">🤖</div>
 
@@ -46,7 +44,8 @@
       </div>
 
       <!-- Typing Indicator -->
-      <div v-if="loading" class="typing-indicator">AI is typing…</div>
+      <div v-if="loading && !isInterrupting" class="typing-indicator">AI is typing…</div>
+      <div v-if="isInterrupting" class="typing-indicator">Typing interrupted</div>
     </div>
 
     <!-- Footer -->
@@ -71,19 +70,19 @@
       <!-- Message Input -->
       <input
         v-model="text"
-        @keyup.enter="send"
+        @keyup.enter="handleSendOrInterrupt"
         :disabled="loading"
         placeholder="Type your message..."
         class="input-text"
       />
 
-      <!-- Send Button -->
+      <!-- Send / Interrupt Button -->
       <button
         class="btn-send"
-        @click="send"
-        :disabled="loading || (!text && !imageFile)"
+        @click="handleSendOrInterrupt"
+        :disabled="(!text && !imageFile) || loading"
       >
-        {{ loading ? 'Sending…' : 'Send' }}
+        {{ loading && !isInterrupting ? 'Sending…' : isInterrupting ? 'Stop' : 'Send' }}
       </button>
     </footer>
 
@@ -126,11 +125,16 @@ watch(
 
 const messages = reactive([]);
 const loading = ref(false);
+const isInterrupting = ref(false);  // To track if the user wants to interrupt AI
 const text = ref('');
 const imageFile = ref(null);
 const preview = ref(null);
 const fileInputRef = ref(null);
 const bodyRef = ref(null);
+
+// Configure typing speed (faster speed for ChatGPT-like experience)
+const typingSpeed = ref(5); // milliseconds between characters (faster speed)
+let typingInterval;
 
 // Scroll to bottom when new message is added
 watch(
@@ -191,37 +195,50 @@ function buildPayload(cfg, message) {
 
 // 渲染不同类型的消息内容
 function renderMessage(message) {
-  // 处理Markdown格式内容
   if (message.startsWith('```') && message.endsWith('```')) {
-    const code = message.slice(3, -3).trim(); // 去掉 ``` 
+    const code = message.slice(3, -3).trim();
     return `<pre class="code-block">${code}</pre>`;
   }
 
-  // 检测是否包含HTML代码，并且展示为HTML
   if (/<.*?>/.test(message)) {
-    return message; // 直接返回HTML内容
+    return message;
   }
 
-  return message; // 普通文本
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  message = message.replace(urlRegex, (url) => `<a href="${url}" target="_blank">${url}</a>`);
+
+  return message;
 }
 
 function simulateTypingEffect(message, callback) {
   let index = 0;
-  const interval = setInterval(() => {
+  clearInterval(typingInterval); 
+  typingInterval = setInterval(() => {
+    if (isInterrupting.value) {  // Check if interrupted
+      clearInterval(typingInterval); 
+      return;
+    }
+
     if (index < message.length) {
-      callback(message.slice(0, index + 1)); // 每次更新当前文本
+      callback(message.slice(0, index + 1));
       index++;
     } else {
-      clearInterval(interval); // 完成时停止
+      clearInterval(typingInterval);
     }
-  }, 100); // 每个字符的间隔时间
+  }, typingSpeed.value);
 }
 
-// 发送消息
-async function send() {
+// Handle send / interrupt functionality
+async function handleSendOrInterrupt() {
+  if (isInterrupting.value) {
+    clearInterval(typingInterval); // Stop typing effect
+    messages.push({ sender: 'ai', text: "Interrupted!" }); // Show interruption message
+    isInterrupting.value = false;  // Reset interrupt flag
+    return;
+  }
+
   if (loading.value || (!text.value.trim() && !imageFile.value)) return;
 
-  // 发送用户消息
   messages.push({
     sender: 'user',
     text: text.value,
@@ -251,7 +268,6 @@ async function send() {
     if (!res.ok) throw new Error(`API error (${res.status})`);
 
     const data = await res.json();
-    console.log('Raw response:', data);
 
     const reply =
       data.choices?.[0]?.message?.content ||
@@ -260,17 +276,13 @@ async function send() {
       data.text ||
       '(no reply)';
 
-    // 每次用户输入时创建新消息
-    messages.push({ sender: 'ai', text: '', image: null });  // Push a new empty AI message
+    messages.push({ sender: 'ai', text: '', image: null });
 
-    // 使用模拟打字效果逐字显示 AI 回复
     simulateTypingEffect(reply, (partialReply) => {
-      // 更新AI的最新消息
       const aiMessage = messages[messages.length - 1];
       aiMessage.text = partialReply;
     });
   } catch (err) {
-    console.error(err);
     messages.push({ sender: 'ai', text: `❌ Send failed: ${err.message}` });
   } finally {
     loading.value = false;
