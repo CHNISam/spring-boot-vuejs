@@ -1,74 +1,108 @@
 <template>
-  <div class="profile-page p-4">
-    <!-- 用户信息 -->
-    <div class="user-info mb-6">
-      <h1>Welcome, {{ user.firstName }} {{ user.lastName }}</h1>
-      <p><strong>ID:</strong> {{ user.id }}</p>
-    </div>
+  <div class="user">
+    <h1>Create User</h1>
 
-    <!-- 帖子列表 -->
-    <div class="user-posts">
-      <h2>Your Posts</h2>
-      <div v-if="loading" class="text-gray-500">Loading posts…</div>
-      <div v-else-if="posts.length === 0" class="text-gray-500">You haven't posted anything yet.</div>
-      <ul v-else class="space-y-4">
-        <li v-for="post in posts" :key="post.id" class="p-4 border rounded-lg">
-          <h3 class="text-lg font-semibold">{{ post.title }}</h3>
-          <p class="mt-2">{{ post.content }}</p>
-        </li>
-      </ul>
-    </div>
+    <h3>Just some database interaction...</h3>
+
+    <input type="text" v-model="user.firstName" placeholder="user_id">
+    <input type="text" v-model="user.lastName" placeholder="default_password">
+
+    <button @click="createNewUser()">Create User</button>
+
+    <div v-if="showResponse"><h6>User created with Id: {{ user.id }}</h6></div>
+
+    <button v-if="showResponse" @click="retrieveUser()">Retrieve user {{user.id}} data from database</button>
+
+    <h4 v-if="showRetrievedUser">Retrieved User {{retrievedUser.firstName}} {{retrievedUser.lastName}}</h4>
   </div>
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, ref } from 'vue';
-import { useStore } from 'vuex';
-import api, { Post } from '../api/backend-api';
+import { AxiosError } from "axios";
+import { defineComponent } from 'vue';
+import api from "../api/backend-api";
+
+interface State {
+  user: {
+    id: number
+    firstName: string,
+    lastName: string;
+  };
+  retrievedUser: {
+    id: number
+    firstName: string,
+    lastName: string;
+  };
+  showResponse: boolean;
+  showRetrievedUser: boolean;
+  errors: AxiosError[]
+}
 
 export default defineComponent({
-  name: 'Profile',
-  setup() {
-    const store = useStore();
-    // 从 Vuex 里拿到 profile
-    const user = computed(() => store.getters.currentUser!);
+  name: 'User',
 
-    const posts = ref<Post[]>([]);
-    const loading = ref(false);
-    const error = ref<string | null>(null);
-
-    // 拉取当前用户的帖子
-    async function loadPosts() {
-      if (!user.value) return;
-      loading.value = true;
-      error.value = null;
-      try {
-        const resp = await api.getPostsByUser(user.value.id);
-        posts.value = resp.data;
-      } catch (e: any) {
-        error.value = e.message || 'Failed to load posts';
-      } finally {
-        loading.value = false;
-      }
+  data: (): State => {
+    return {
+      errors: [],
+      user: {
+        id: 0,
+        firstName: '',
+        lastName: ''
+      },
+      showResponse: false,
+      retrievedUser: {
+        id: 0,
+        firstName: '',
+        lastName: ''
+      },
+      showRetrievedUser: false
     }
-
-    onMounted(loadPosts);
-
-    return { user, posts, loading, error };
+  },
+  methods: {
+    // Fetches posts when the view is created.
+    createNewUser () {
+      api.createUser(this.user.firstName, this.user.lastName).then(response => {
+          // JSON responses are automatically parsed.
+          this.user.id = response.data;
+          console.log('Created new User with Id ' + response.data);
+          this.showResponse = true
+        })
+        .catch(e => {
+          this.errors.push(e)
+        })
+    },
+    retrieveUser () {
+      api.getUser(this.user.id).then(response => {
+          // JSON responses are automatically parsed.
+          this.retrievedUser = response.data;
+          this.showRetrievedUser = true
+        })
+        .catch((error: AxiosError):void => {
+          this.errors.push(error)
+        })
+    }
   }
 });
 </script>
 
+
+<!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-.profile-page {
-  max-width: 800px;
-  margin: 0 auto;
-}
-.user-info h1 {
-  font-size: 2rem;
-}
-.user-posts h2 {
-  font-size: 1.5rem;
-  margin-bottom: 0.5rem;
-}
+  h1, h2 {
+    font-weight: normal;
+  }
+
+  ul {
+    list-style-type: none;
+    padding: 0;
+  }
+
+  li {
+    display: inline-block;
+    margin: 0 10px;
+  }
+
+  a {
+    color: #42b983;
+  }
 </style>
