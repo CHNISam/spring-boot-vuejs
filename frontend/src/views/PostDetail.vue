@@ -42,7 +42,8 @@
         </div>
 
         <!-- Body -->
-        <div class="content" v-html="post.content"></div>
+        <div v-if="post.content" class="content" v-html="post.content"></div>
+        <div v-else class="content">No content available for this post.</div>
 
         <!-- Comments Section -->
         <div class="comments-section" ref="commentsSection" id="comments">
@@ -116,6 +117,7 @@
     </div>
   </div>
 </template>
+
 
 <script lang="ts" setup>
 import axios from 'axios'

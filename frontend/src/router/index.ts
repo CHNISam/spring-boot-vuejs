@@ -1,6 +1,6 @@
-import PostDetail from '@/views/PostDetail.vue';
-import PostEditor from '@/views/PostEditor.vue';
-import PostList from '@/views/PostList.vue';
+import PostDetail from "@/views/PostDetail.vue";
+import PostEditor from "@/views/PostEditor.vue";
+import PostList from "@/views/PostList.vue";
 import Search from "@/views/Search.vue";
 import { createRouter, createWebHistory, RouteRecordRaw } from "vue-router";
 import AI from "../views/AI.vue";
@@ -14,9 +14,21 @@ import store from "../store";
 
 const routes: Array<RouteRecordRaw> = [
   { path: "/", component: Home },
-  { path: "/callservice", component: Service },
+  {
+    path: "/callservice",
+    component: Service,
+    meta: {
+      requiresAuth: true,
+    },
+  },
   { path: "/ai", component: AI },
-  { path: "/user", component: User },
+  {
+    path: "/user",
+    component: User,
+    meta: {
+      requiresAuth: true,
+    },
+  },
   { path: "/login", component: Login },
   {
     path: "/protected",
@@ -26,12 +38,17 @@ const routes: Array<RouteRecordRaw> = [
     },
   },
   { path: "/", name: "Home", component: Home },
-    // 发表新帖（投稿）页面
-  { path: '/editor',     name: 'PostEditor', component: PostEditor },
+  // 发表新帖（投稿）页面
+  { path: "/editor", name: "PostEditor", component: PostEditor },
   // 帖子列表页面
-  { path: '/posts',       name: 'PostList',   component: PostList },
+  { path: "/posts", name: "PostList", component: PostList },
   { path: "/search", name: "Search", component: Search },
-  { path: '/posts/:id', name: 'PostDetail', component: PostDetail, props: true },
+  {
+    path: "/posts/:id",
+    name: "PostDetail",
+    component: PostDetail,
+    props: true,
+  },
 
   // otherwise redirect to home
   { path: "/:pathMatch(.*)*", redirect: "/" },
