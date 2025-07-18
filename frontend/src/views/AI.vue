@@ -171,9 +171,23 @@ function buildPayload(cfg, message) {
   }
 }
 
+// 逐字打字效果
+function simulateTypingEffect(message, callback) {
+  let index = 0;
+  const interval = setInterval(() => {
+    if (index < message.length) {
+      callback(message.slice(0, index + 1)); // 每次更新当前文本
+      index++;
+    } else {
+      clearInterval(interval); // 完成时停止
+    }
+  }, 100); // 每个字符的间隔时间
+}
+
 async function send() {
   if (loading.value || (!text.value.trim() && !imageFile.value)) return;
 
+  // 发送用户消息
   messages.push({
     sender: 'user',
     text: text.value,
@@ -212,7 +226,16 @@ async function send() {
       data.text ||
       '(no reply)';
 
-    messages.push({ sender: 'ai', text: reply, image: null });
+    // 使用模拟打字效果逐字显示 AI 回复
+    simulateTypingEffect(reply, (partialReply) => {
+      // 更新同一条消息
+      const aiMessage = messages.find((msg) => msg.sender === 'ai');
+      if (aiMessage) {
+        aiMessage.text = partialReply; // 更新文本
+      } else {
+        messages.push({ sender: 'ai', text: partialReply, image: null });
+      }
+    });
   } catch (err) {
     console.error(err);
     messages.push({ sender: 'ai', text: `❌ Send failed: ${err.message}` });
@@ -225,6 +248,7 @@ async function send() {
 </script>
 
 <style scoped>
+/* Style sections remain unchanged */
 .chat-container {
   --bg-dark:     #0d1117;
   --bg-light:    #161b22;
