@@ -2,15 +2,11 @@
   <div class="profile-page p-6 bg-dark">
     <!-- 用户信息 -->
     <div v-if="user" class="user-info bg-card rounded-lg shadow-lg p-6 mb-6">
-      <!-- 头像 -->
+      <!-- 头像 (已删除上传和修改逻辑，直接展示一个模拟头像) -->
       <div class="avatar-container mb-6 text-center">
         <div class="avatar-wrapper">
           <img :src="user.avatar || defaultAvatar" alt="Avatar" class="avatar" />
         </div>
-        <!-- 隐藏的文件选择框 -->
-        <input type="file" @change="handleAvatarChange" class="hidden" ref="avatarInput" />
-        <!-- 点击按钮触发文件选择框 -->
-        <button @click="triggerAvatarInput" class="btn-change-avatar">Change Avatar</button>
       </div>
 
       <!-- 用户名和ID -->
@@ -84,27 +80,6 @@ export default defineComponent({
 
     const defaultAvatar = 'https://example.com/default-avatar.png'; // 默认头像的URL
 
-    // 上传头像
-    const avatarInput = ref<HTMLInputElement | null>(null);
-
-    const handleAvatarChange = (event: Event) => {
-      const file = (event.target as HTMLInputElement).files?.[0];
-      if (file) {
-        // 处理头像文件上传
-        const reader = new FileReader();
-        reader.onload = () => {
-          if (reader.result) {
-            user.value.avatar = reader.result as string;
-          }
-        };
-        reader.readAsDataURL(file);
-      }
-    };
-
-    const triggerAvatarInput = () => {
-      avatarInput.value?.click();
-    };
-
     const saveBio = () => {
       alert('Bio saved');
       isEditingBio.value = false;
@@ -125,7 +100,7 @@ export default defineComponent({
     return { 
       user, posts, loading, 
       isEditingBio, isEditingEmail, 
-      defaultAvatar, handleAvatarChange, triggerAvatarInput, saveBio, saveEmail 
+      defaultAvatar, saveBio, saveEmail 
     };
   }
 });
@@ -161,7 +136,7 @@ export default defineComponent({
   color: white;
 }
 
-/* 头像和按钮样式 */
+/* 头像样式 */
 .avatar-wrapper {
   position: relative;
   display: inline-block;
@@ -177,20 +152,6 @@ export default defineComponent({
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.btn-change-avatar {
-  margin-top: 10px;
-  padding: 8px 20px;
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  cursor: pointer;
-  border-radius: 4px;
-}
-
-.btn-change-avatar:hover {
-  background-color: #45a049;
 }
 
 h1, h3 {
