@@ -7,8 +7,8 @@
   },
   {
     "name": "OpenAI",
-    "url": "https://api.openai.com/v1/chat/completions",
-    "apiKey": "sk-XXX",
+    "url": "https://api.oaipro.com/v1/chat/completions",
+    "apiKey": "sk-iRJHwtaSWs5s3wJGD9Ba0e64C5Af42549210C71c384c0098",
     "formatter": "openai"
   },
   {

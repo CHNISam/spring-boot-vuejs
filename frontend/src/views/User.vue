@@ -4,8 +4,8 @@
 
     <h3>Just some database interaction...</h3>
 
-    <input type="text" v-model="user.firstName" placeholder="first name">
-    <input type="text" v-model="user.lastName" placeholder="last name">
+    <input type="text" v-model="user.firstName" placeholder="user_id">
+    <input type="text" v-model="user.lastName" placeholder="default_password">
 
     <button @click="createNewUser()">Create User</button>
 
@@ -18,9 +18,9 @@
 </template>
 
 <script lang="ts">
+import { AxiosError } from "axios";
 import { defineComponent } from 'vue';
 import api from "../api/backend-api";
-import {AxiosError} from "axios";
 
 interface State {
   user: {
