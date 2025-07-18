@@ -1,5 +1,6 @@
 <template>
   <div class="chat-container">
+    <!-- Header -->
     <header class="chat-header">
       <div class="header-left">
         <h2 class="title">AI Chat</h2>
@@ -19,15 +20,22 @@
       </div>
     </header>
 
+    <!-- Chat Body -->
     <div class="chat-body" ref="bodyRef">
+      <!-- Display messages -->
       <div
         v-for="(msg, idx) in messages"
         :key="idx"
         :class="['chat-message', msg.sender]"
       >
+        <!-- User Avatar -->
+        <div v-if="msg.sender === 'user'" class="avatar">👤</div>
+        <!-- AI Avatar -->
         <div v-if="msg.sender === 'ai'" class="avatar">🤖</div>
+
+        <!-- Message Bubble -->
         <div class="bubble">
-          <p class="text">{{ msg.text }}</p>
+          <p class="text" v-html="renderMessage(msg.text)"></p>
           <img
             v-if="msg.image"
             :src="msg.image"
@@ -36,10 +44,14 @@
           />
         </div>
       </div>
+
+      <!-- Typing Indicator -->
       <div v-if="loading" class="typing-indicator">AI is typing…</div>
     </div>
 
+    <!-- Footer -->
     <footer class="chat-footer">
+      <!-- Attach Button -->
       <button
         class="btn-attach"
         @click="triggerFileInput"
@@ -55,6 +67,8 @@
         class="hidden"
         @change="onFileChange"
       />
+
+      <!-- Message Input -->
       <input
         v-model="text"
         @keyup.enter="send"
@@ -62,6 +76,8 @@
         placeholder="Type your message..."
         class="input-text"
       />
+
+      <!-- Send Button -->
       <button
         class="btn-send"
         @click="send"
@@ -71,6 +87,7 @@
       </button>
     </footer>
 
+    <!-- Image Preview -->
     <div v-if="preview" class="preview-container">
       <div class="preview-box">
         <img
@@ -115,6 +132,7 @@ const preview = ref(null);
 const fileInputRef = ref(null);
 const bodyRef = ref(null);
 
+// Scroll to bottom when new message is added
 watch(
   () => messages.length,
   async () => {
@@ -171,7 +189,22 @@ function buildPayload(cfg, message) {
   }
 }
 
-// 逐字打字效果
+// 渲染不同类型的消息内容
+function renderMessage(message) {
+  // 处理Markdown格式内容
+  if (message.startsWith('```') && message.endsWith('```')) {
+    const code = message.slice(3, -3).trim(); // 去掉 ``` 
+    return `<pre class="code-block">${code}</pre>`;
+  }
+
+  // 检测是否包含HTML代码，并且展示为HTML
+  if (/<.*?>/.test(message)) {
+    return message; // 直接返回HTML内容
+  }
+
+  return message; // 普通文本
+}
+
 function simulateTypingEffect(message, callback) {
   let index = 0;
   const interval = setInterval(() => {
@@ -184,6 +217,7 @@ function simulateTypingEffect(message, callback) {
   }, 100); // 每个字符的间隔时间
 }
 
+// 发送消息
 async function send() {
   if (loading.value || (!text.value.trim() && !imageFile.value)) return;
 
@@ -226,15 +260,14 @@ async function send() {
       data.text ||
       '(no reply)';
 
+    // 每次用户输入时创建新消息
+    messages.push({ sender: 'ai', text: '', image: null });  // Push a new empty AI message
+
     // 使用模拟打字效果逐字显示 AI 回复
     simulateTypingEffect(reply, (partialReply) => {
-      // 更新同一条消息
-      const aiMessage = messages.find((msg) => msg.sender === 'ai');
-      if (aiMessage) {
-        aiMessage.text = partialReply; // 更新文本
-      } else {
-        messages.push({ sender: 'ai', text: partialReply, image: null });
-      }
+      // 更新AI的最新消息
+      const aiMessage = messages[messages.length - 1];
+      aiMessage.text = partialReply;
     });
   } catch (err) {
     console.error(err);
@@ -247,8 +280,8 @@ async function send() {
 }
 </script>
 
+
 <style scoped>
-/* Style sections remain unchanged */
 .chat-container {
   --bg-dark:     #0d1117;
   --bg-light:    #161b22;
